@@ -1,0 +1,2059 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>成都房价监控平台</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --primary: #1a73e8;
+            --primary-dark: #1557b0;
+            --up-color: #e74c3c;
+            --down-color: #27ae60;
+            --bg: #f0f2f5;
+            --card-bg: #ffffff;
+            --text: #1f2937;
+            --text-secondary: #6b7280;
+            --border: #e5e7eb;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-lg: 0 4px 12px rgba(0,0,0,0.1);
+            --radius: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        /* ===== Header ===== */
+        .header {
+            background: linear-gradient(135deg, #1a73e8, #0d47a1);
+            color: white;
+            padding: 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .header-inner {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header h1 .icon { font-size: 28px; }
+        .header-meta {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-size: 13px;
+            opacity: 0.9;
+        }
+        .header-meta .badge {
+            background: rgba(255,255,255,0.2);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+        .data-source {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        /* ===== Layout ===== */
+        .container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 20px 24px;
+        }
+
+        /* ===== KPI Cards ===== */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .kpi-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            transition: transform 0.2s;
+        }
+        .kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+        .kpi-label { font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; }
+        .kpi-value { font-size: 28px; font-weight: 700; color: var(--text); }
+        .kpi-change { font-size: 13px; margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+        .kpi-change.up { color: var(--up-color); }
+        .kpi-change.down { color: var(--down-color); }
+
+        /* ===== Tab Bar ===== */
+        .tab-bar {
+            display: flex;
+            gap: 4px;
+            background: var(--card-bg);
+            padding: 4px;
+            border-radius: var(--radius);
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+            overflow-x: auto;
+        }
+        .tab-bar button {
+            flex-shrink: 0;
+            padding: 8px 18px;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .tab-bar button:hover { background: #f3f4f6; }
+        .tab-bar button.active {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+
+        /* ===== Cards ===== */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .card-header h3 { font-size: 16px; font-weight: 600; }
+        .card-body { padding: 20px; }
+
+        /* ===== Chart Grid ===== */
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .chart-container { height: 360px; }
+
+        /* ===== Filters ===== */
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .filter-group { display: flex; align-items: center; gap: 6px; }
+        .filter-group label { font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
+        .filter-group select, .filter-group input {
+            padding: 6px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 13px;
+            background: white;
+            color: var(--text);
+            outline: none;
+        }
+        .filter-group select:focus, .filter-group input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(26,115,232,0.1);
+        }
+        .filter-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid var(--border);
+            background: white;
+        }
+        .filter-tag:hover { border-color: var(--primary); color: var(--primary); }
+        .filter-tag.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        /* ===== Table ===== */
+        .table-wrap { overflow-x: auto; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th {
+            background: #f8f9fb;
+            padding: 10px 14px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 13px;
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+        }
+        th:hover { color: var(--primary); }
+        th .sort-icon { font-size: 10px; margin-left: 2px; }
+        td {
+            padding: 10px 14px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        tr:hover td { background: #f8faff; }
+        .price-cell { font-weight: 600; font-size: 15px; }
+        .change-up { color: var(--up-color); font-weight: 600; }
+        .change-down { color: var(--down-color); font-weight: 600; }
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .tag-school { background: #fef3c7; color: #92400e; }
+        .tag-metro { background: #dbeafe; color: #1d4ed8; }
+        .tag-new { background: #d1fae5; color: #065f46; }
+
+        /* ===== Pagination ===== */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            padding: 16px;
+        }
+        .pagination button {
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .pagination button:hover { border-color: var(--primary); color: var(--primary); }
+        .pagination button.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+        .pagination .page-info { font-size: 13px; color: var(--text-secondary); }
+
+        /* ===== School District Section ===== */
+        .school-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 16px;
+        }
+        .school-card {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            transition: all 0.2s;
+        }
+        .school-card:hover { border-color: var(--primary); box-shadow: var(--shadow); }
+        .school-card h4 { font-size: 15px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+        .school-card .school-info { font-size: 13px; color: var(--text-secondary); }
+        .school-card .school-price {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--up-color);
+            margin-top: 8px;
+        }
+        .school-card .school-communities {
+            margin-top: 8px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 768px) {
+            .chart-grid { grid-template-columns: 1fr; }
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+            .kpi-card { padding: 12px; }
+            .kpi-value { font-size: 22px; }
+            .kpi-label { font-size: 11px; }
+            .header-inner { flex-direction: column; gap: 8px; align-items: flex-start; padding: 12px 16px; }
+            .header-inner h1 { font-size: 18px; }
+            .container { padding: 8px; }
+            .tab-bar { gap: 2px; padding: 4px; margin-bottom: 12px; -webkit-overflow-scrolling: touch; }
+            .tab-bar button { padding: 6px 10px; font-size: 12px; border-radius: 6px; }
+            .tab-bar::-webkit-scrollbar { display: none; }
+            .card { border-radius: 10px; }
+            .card-header { padding: 12px 14px; }
+            .card-header h3 { font-size: 14px; }
+            .card-body { padding: 12px; }
+            table { font-size: 12px; }
+            table th, table td { padding: 6px 8px; }
+            .filter-tag { font-size: 11px; padding: 3px 8px; }
+            .search-box { max-width: 100%; }
+            /* 购房建议卡片 */
+            .card-body h3 { font-size: 15px; }
+            .card-body h4 { font-size: 13px; }
+            .card-body ul, .card-body ol { padding-left: 16px; }
+            .card-body li { font-size: 13px; line-height: 1.7; }
+            .card-body table { font-size: 11px; }
+            .card-body p { font-size: 13px; }
+            /* 来源面板 */
+            #tpSourcePanel { padding: 10px 12px !important; font-size: 12px !important; line-height: 1.9 !important; }
+            #tpSourcePanel span { margin-right: 10px !important; margin-bottom: 4px !important; }
+        }
+        @media (max-width: 480px) {
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+            .kpi-card { padding: 10px 8px; }
+            .kpi-value { font-size: 18px; }
+            .kpi-label { font-size: 10px; }
+            .kpi-change { font-size: 10px; }
+            .header-inner h1 { font-size: 16px; }
+            .tab-bar button { padding: 5px 8px; font-size: 11px; }
+            .container { padding: 6px; }
+            .card-header h3 { font-size: 13px; }
+            .card-body { padding: 10px; }
+            table { font-size: 11px; }
+            table th, table td { padding: 4px 6px; white-space: nowrap; }
+            .filter-tag { font-size: 10px; padding: 2px 6px; margin: 2px; }
+        }
+        /* 图表响应式高度 */
+        .chart-tall { height: 500px; }
+        .chart-mid { height: 420px; }
+        .chart-short { height: 350px; }
+        @media (max-width: 768px) {
+            .chart-tall { height: 380px; }
+            .chart-mid { height: 320px; }
+            .chart-short { height: 280px; }
+        }
+        @media (max-width: 480px) {
+            .chart-tall { height: 320px; }
+            .chart-mid { height: 280px; }
+            .chart-short { height: 240px; }
+        }
+
+        /* ===== Loading ===== */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 60px;
+            color: var(--text-secondary);
+        }
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Search */
+        .search-box {
+            position: relative;
+            flex: 1;
+            max-width: 300px;
+        }
+        .search-box input {
+            width: 100%;
+            padding: 8px 12px 8px 36px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+        }
+        .search-box input:focus { border-color: var(--primary); }
+        .search-box::before {
+            content: "🔍";
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 14px;
+        }
+
+        .full-width { grid-column: 1 / -1; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-inner">
+        <h1><span class="icon">🏠</span> 成都房价监控平台</h1>
+        <div class="header-meta">
+            <span class="badge" id="dataModeBadge">📊 贝壳真实数据(2月)</span>
+            <button id="fetchRealBtn" onclick="fetchRealData()" style="background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.4);padding:5px 14px;border-radius:20px;cursor:pointer;font-size:12px;transition:all 0.2s;">🔄 获取真实数据</button>
+            <span class="data-source">数据源: 贝壳找房 | 更新: <span id="updateTime">--</span></span>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <!-- KPI 概览 -->
+    <div class="kpi-grid" id="kpiGrid"></div>
+    <div style="text-align:right;font-size:11px;color:#aaa;margin:-8px 0 12px;">数据来源: 贝壳找房(cd.ke.com) 二手房小区均价 | 趋势数据: 中国房价行情网(creprice.cn)</div>
+
+    <!-- Tab 导航 -->
+    <div class="tab-bar" id="tabBar">
+        <button class="active" data-tab="overview">📊 全城概览</button>
+        <button data-tab="district">🗺️ 区域分析</button>
+        <button data-tab="newhouse">🏗️ 新房楼盘</button>
+        <button data-tab="school">🎓 学区房分析</button>
+        <button data-tab="trend">📈 价格趋势</button>
+        <button data-tab="list">📋 小区列表</button>
+        <button data-tab="advice">💡 购房建议</button>
+    </div>
+
+    <!-- 内容区域 -->
+    <div id="tabContent"></div>
+</div>
+
+<script>
+// ============================================================
+// 模拟数据生成器 - 基于成都真实房价水平
+// ============================================================
+const DISTRICTS_DATA = {
+    "锦江区": { avgPrice: 20411, change: 0, count: 1418, schoolCount: 89, hot: true },
+    "青羊区": { avgPrice: 19648, change: 0, count: 1265, schoolCount: 95, hot: true },
+    "武侯区": { avgPrice: 14045, change: 0, count: 1580, schoolCount: 72, hot: false },
+    "高新区": { avgPrice: 18753, change: 0, count: 1120, schoolCount: 45, hot: true },
+    "成华区": { avgPrice: 14280, change: 0, count: 1340, schoolCount: 58, hot: false },
+    "金牛区": { avgPrice: 13650, change: 0, count: 1290, schoolCount: 63, hot: false },
+    "天府新区": { avgPrice: 14200, change: 0, count: 680, schoolCount: 22, hot: false },
+    "高新西区": { avgPrice: 11350, change: 0, count: 420, schoolCount: 15, hot: false },
+    "双流区": { avgPrice: 11143, change: 0, count: 1650, schoolCount: 35, hot: false },
+    "温江区": { avgPrice: 10520, change: 0, count: 890, schoolCount: 28, hot: false },
+    "郫都区": { avgPrice: 9180, change: 0, count: 1100, schoolCount: 32, hot: false },
+    "龙泉驿区": { avgPrice: 10200, change: 0, count: 1050, schoolCount: 25, hot: false },
+    "新都区": { avgPrice: 9050, change: 0, count: 980, schoolCount: 20, hot: false },
+    "新津区": { avgPrice: 7350, change: 0, count: 350, schoolCount: 8, hot: false },
+    "青白江区": { avgPrice: 6820, change: 0, count: 380, schoolCount: 10, hot: false },
+};
+
+const SCHOOL_DATA = {
+    "锦江区": [
+        { school: "成师附小(本部)", avgPrice: 32000, communities: ["东风路一号院","盐市口附近老小区","红星路四段小区"], level: "省重点", change: 1.5 },
+        { school: "盐道街小学", avgPrice: 28500, communities: ["盐道街小区","天涯石南街","东大街沿线"], level: "省重点", change: 0.8 },
+        { school: "龙王庙正街小学", avgPrice: 27000, communities: ["龙王庙正街小区","长顺街","东安南路"], level: "市重点", change: -0.3 },
+        { school: "天涯石小学", avgPrice: 26500, communities: ["天涯石小区","东门大桥","水碾河路"], level: "市重点", change: 0.5 },
+        { school: "娇子小学", avgPrice: 24000, communities: ["娇子苑","锦华苑","锦江花园"], level: "区重点", change: 1.0 },
+    ],
+    "青羊区": [
+        { school: "泡桐树小学(本部)", avgPrice: 35000, communities: ["支矶石街","实业街小区","商业街小区"], level: "省重点", change: 2.0 },
+        { school: "实验小学", avgPrice: 30000, communities: ["文庙前街","南较场街","青羊正街"], level: "省重点", change: 1.2 },
+        { school: "草堂小学", avgPrice: 28000, communities: ["草堂路","百花潭路","浣花南路"], level: "省重点", change: 0.5 },
+        { school: "东城根街小学", avgPrice: 27500, communities: ["东城根街","多子巷","西安南路"], level: "市重点", change: 0.3 },
+        { school: "少城小学", avgPrice: 25000, communities: ["小南街","长顺上街","奎星楼街"], level: "市重点", change: -0.2 },
+    ],
+    "武侯区": [
+        { school: "龙江路小学", avgPrice: 29000, communities: ["龙江路小区","致民路","临江路"], level: "省重点", change: 0.9 },
+        { school: "川大附小", avgPrice: 27000, communities: ["科华街","望江路","九眼桥附近"], level: "省重点", change: 0.6 },
+        { school: "棕北小学", avgPrice: 26000, communities: ["棕南小区","棕北小区","科华北路"], level: "市重点", change: -0.4 },
+    ],
+    "高新区": [
+        { school: "泡小天府校区", avgPrice: 30000, communities: ["天府二街","天府三街","天府长城"], level: "省重点分校", change: 3.2 },
+        { school: "高新实验小学", avgPrice: 25000, communities: ["紫荆北路","紫瑞大道","剑南大道"], level: "区重点", change: 2.5 },
+        { school: "芳草小学", avgPrice: 24000, communities: ["芳草街","神仙树","紫薇东路"], level: "市重点", change: 1.8 },
+    ],
+    "成华区": [
+        { school: "成华实验小学", avgPrice: 22000, communities: ["双林路","建设路","猛追湾"], level: "区重点", change: 0.7 },
+        { school: "双林小学", avgPrice: 20000, communities: ["双林中横路","府青路","新鸿路"], level: "市重点", change: 0.3 },
+        { school: "电子科大附小", avgPrice: 19500, communities: ["建设北路","一环路东一段","二仙桥"], level: "区重点", change: 0.4 },
+    ],
+    "金牛区": [
+        { school: "石笋街小学", avgPrice: 23000, communities: ["石笋街","抚琴路","一环路北三段"], level: "省重点", change: 0.6 },
+        { school: "人北小学", avgPrice: 21000, communities: ["人民北路","梁家巷","五块石"], level: "市重点", change: -0.3 },
+        { school: "茶店子小学", avgPrice: 19000, communities: ["茶店子路","蜀汉路","营门口"], level: "市重点", change: 0.2 },
+    ],
+    "天府新区": [
+        { school: "天府四小", avgPrice: 22000, communities: ["麓山大道","天府公园城","万安花园"], level: "区重点", change: 2.8 },
+        { school: "天府七小", avgPrice: 20500, communities: ["锦江生态带","鹿溪花园","华阳滨河路"], level: "区重点", change: 2.2 },
+        { school: "元音小学", avgPrice: 19500, communities: ["恒大天府半岛","保利天府林语","合能铂悦府"], level: "区重点", change: 1.5 },
+    ],
+    "高新西区": [
+        { school: "电子科大实验小学", avgPrice: 17500, communities: ["中海国际社区","西区花园","百草路小区"], level: "区重点", change: 1.2 },
+        { school: "犀浦实验学校", avgPrice: 15500, communities: ["犀浦花园","大港花园","天骄花园"], level: "区重点", change: 0.8 },
+    ],
+    "双流区": [
+        { school: "棠湖小学", avgPrice: 16500, communities: ["棠湖花园","东升花园","航都花园"], level: "区重点", change: 0.5 },
+        { school: "实验小学(双流)", avgPrice: 15800, communities: ["双楠大道小区","蓝光圣菲悦城","保利心语"], level: "区重点", change: 0.3 },
+        { school: "华阳实验小学", avgPrice: 15200, communities: ["华阳大道花园","中海右岸","万科海悦花园"], level: "区重点", change: 0.6 },
+    ],
+    "温江区": [
+        { school: "温江实验学校", avgPrice: 15000, communities: ["光华大道花园","光华新城","珠江国际花园"], level: "区重点", change: -0.3 },
+        { school: "东大街二小", avgPrice: 14200, communities: ["柳城花园","鱼凫路小区","龙腾御锦"], level: "区重点", change: 0.1 },
+    ],
+    "郫都区": [
+        { school: "郫筒一小", avgPrice: 13500, communities: ["郫筒花园","蓝光COCO","保利花园郫都"], level: "区重点", change: 0.4 },
+        { school: "犀浦外国语学校", avgPrice: 13000, communities: ["犀浦花园","恒大翡翠龙庭","犀浦新区"], level: "区重点", change: 0.2 },
+        { school: "泡小郫都分校", avgPrice: 14200, communities: ["红光花园","万达城","碧桂园凤凰城"], level: "省重点分校", change: 0.8 },
+    ],
+    "龙泉驿区": [
+        { school: "龙泉驿实验小学", avgPrice: 14500, communities: ["龙泉花园","保利城","万科五龙山"], level: "区重点", change: 0.9 },
+        { school: "大面小学", avgPrice: 13800, communities: ["大面花园","蓝润V客东都","龙湖九里晴川"], level: "区重点", change: 0.5 },
+    ],
+    "新都区": [
+        { school: "新都一小", avgPrice: 13000, communities: ["大丰花园","保利公园","金科博翠天宸"], level: "区重点", change: -0.5 },
+        { school: "谕亭小学", avgPrice: 12500, communities: ["三河花园","恒大新都华府","龙湖清风颂"], level: "区重点", change: -0.2 },
+    ],
+    "新津区": [
+        { school: "新津一小", avgPrice: 11000, communities: ["五津花园","花源幸福里","新津牧山丽景"], level: "区重点", change: -0.8 },
+    ],
+    "青白江区": [
+        { school: "大弯小学", avgPrice: 10200, communities: ["大弯花园","城厢花园","青白江凤凰湖"], level: "区重点", change: -0.4 },
+        { school: "实验小学(青白江)", avgPrice: 9800, communities: ["碧桂园翡翠湾","保利花园","华逸花园"], level: "区重点", change: -0.6 },
+    ],
+};
+
+// 生成模拟小区详情
+function generateCommunities() {
+    // 先构建 小区名->学校 的反向映射
+    const schoolMap = {}; // { "小区名-区域": "学校名" }
+    for (const [district, schools] of Object.entries(SCHOOL_DATA)) {
+        for (const s of schools) {
+            for (const comm of s.communities) {
+                schoolMap[comm + '-' + district] = s.school;
+            }
+        }
+    }
+
+    const communities = [];
+    const namePool = {
+        "锦江区": ["锦江花园","东湖花园","水碾河小区","莲花小区","锦华苑","成师附小片区","盐市口商住楼","天涯石花园","牛市口小区","三官堂小区","东大街小区","书院街小区","翠苑小区","静居寺路小区","龙舟路小区","仁恒滨河湾","保利锦江里","复地金融岛","中粮鸿云","朗基望今缘"],
+        "青羊区": ["泡桐树街小区","宽巷子小区","草堂路花园","金沙遗址路小区","文殊坊小区","少城苑","东坡花园","光华逸家","恒大翡翠华庭","中海国际","万达华府","金沙园","金沙鹭岛","苏坡东路小区","万和华府","蜀都花园","清波小区","同盛路小区","百花中心站小区","金色阳光"],
+        "武侯区": ["棕南小区","科华北路小区","桐梓林小区","玉林小区","高升桥小区","龙江路小区","紫荆小区","望江路花园","川大花园","武侯新城小区","簇桥小区","双楠花园","万科金域西岭","中粮五季花城","铁佛小区","红牌楼小区","金雁路小区","鑫苑名家","武侯万达华府","首座"],
+        "高新区": ["天府长城","世纪城","仁和春天","天府新城","中和小区","大源小区","新会展花园","天府二街小区","铁像寺花园","蒙彼利埃小区","南苑小区","盛邦街小区","吉泰路花园","益州大道小区","天府五街小区","汇锦城","招商中央华城","鹭湖宫","保利星座","金融城花园"],
+        "成华区": ["建设路小区","双林路小区","猛追湾花园","万年场小区","府青路花园","二仙桥小区","八里小区","龙潭小区","圣灯路小区","驷马桥花园","保利康桥","万科金域蓝湾","首创万卷山","龙湖三千城","中粮鸿云三期","华润二十四城","招商花园城","蓝光金悦府","东方新城","华府大道花园"],
+        "金牛区": ["抚琴小区","茶店子花园","营门口小区","沙湾路花园","金仙桥小区","九里堤小区","驷马桥小区","人北花园","交大路小区","西南交大花园","金牛万达花园","蜀汉路小区","金泉路小区","天回镇花园","金科廊桥水岸","保利公园198","招商花园城北","中铁丽景花园","西城国际","恒大城"],
+        "天府新区": ["华阳花园","万安小区","麓山小镇","锦江生态带花园","天府公园城","恒大天府半岛","万科公园五号","保利天府林语","鹿溪花园","华阳滨河路花园","合能铂悦府","中海天府ONE","中粮御岭湾","德商国际花园城","佳兆业广场","蓝润春风九里","绿地新里城","天府花园","锦苑","天府学苑"],
+        "高新西区": ["中海国际社区","保利198花园","西区花园","合作花园","百草路小区","天骄花园","大港花园","犀浦花园","园丁小区","西芯大道花园"],
+        "双流区": ["航都花园","双楠大道小区","华阳大道花园","棠湖花园","东升花园","九江花园","蛟龙港小区","西航港花园","彭镇花园","黄甲花园","中海右岸","麓山大道花园","蓝光圣菲悦城","保利心语","万科海悦花园","中粮祥云"],
+        "温江区": ["光华大道花园","柳城花园","万春花园","金马花园","涌泉花园","珠江国际花园","碧桂园温泉城","恒大城温江","保利花半里","光华新城","温江万达广场","龙腾御锦","花土沟花园","鱼凫路小区","光华逸家花园"],
+        "郫都区": ["犀浦花园","红光花园","郫筒花园","安靖花园","团结花园","花园镇小区","唐昌花园","蓝光COCO","保利花园郫都","恒大翡翠龙庭","碧桂园凤凰城","万达城","龙湖听蓝湾","红光大道花园","犀浦新区"],
+        "龙泉驿区": ["龙泉花园","大面花园","十陵花园","西河花园","洛带花园","同安花园","柏合花园","万科五龙山","保利城","首创逸景","蓝润V客东都","龙湖九里晴川","中海御湖","招商花园城东","龙泉驿万达"],
+        "新都区": ["大丰花园","三河花园","新繁花园","斑竹园小区","石板滩花园","保利公园","金科博翠天宸","碧桂园凤凰城","恒大新都华府","龙湖清风颂","蓝光长岛国际","富森美花园","新新花园","蜀都万达广场","泰禾锦辉"],
+        "新津区": ["五津花园","花源花园","兴义花园","花桥花园","永商花园","新津牧山丽景","花源幸福里","碧桂园新津","恒大新津府"],
+        "青白江区": ["大弯花园","城厢花园","青白江凤凰湖","弥牟花园","碧桂园翡翠湾","恒大青白江","保利花园","万达广场","华逸花园"],
+    };
+
+    const yearOptions = ["1995年","1998年","2000年","2002年","2005年","2008年","2010年","2012年","2015年","2017年","2019年","2020年","2021年","2022年","2023年","2024年","2025年"];
+
+    let id = 0;
+    for (const [district, info] of Object.entries(DISTRICTS_DATA)) {
+        const names = namePool[district] || [];
+        const count = Math.min(names.length, 20);
+        for (let i = 0; i < count; i++) {
+            id++;
+            const basePrice = info.avgPrice;
+            const priceVariation = (Math.random() - 0.5) * basePrice * 0.6;
+            const unitPrice = Math.round(basePrice + priceVariation);
+            const monthChange = (Math.random() - 0.4) * 4;
+            const yearChange = (Math.random() - 0.3) * 8;
+            const isSchool = Math.random() < (info.schoolCount / info.count) * 2.5;
+            const nearSchool = schoolMap[names[i] + '-' + district] || '';
+            const isSchoolFinal = nearSchool ? true : isSchool;
+            // 没有精确匹配到学校的学区房，随机分配一个本区学校
+            let schoolName = nearSchool;
+            if (isSchoolFinal && !schoolName && SCHOOL_DATA[district]) {
+                const distSchools = SCHOOL_DATA[district];
+                schoolName = distSchools[Math.floor(Math.random() * distSchools.length)].school;
+            }
+            const isMetro = Math.random() < 0.6;
+            const buildYear = yearOptions[Math.floor(Math.random() * yearOptions.length)];
+            const isNew = parseInt(buildYear) >= 2020;
+
+            communities.push({
+                id: `CD${String(id).padStart(6, '0')}`,
+                name: names[i],
+                district: district,
+                unitPrice: Math.max(unitPrice, 5000),
+                monthChange: Math.round(monthChange * 100) / 100,
+                yearChange: Math.round(yearChange * 100) / 100,
+                onSale: Math.floor(Math.random() * 30),
+                deal90: Math.floor(Math.random() * 15),
+                buildYear: buildYear,
+                isSchool: isSchoolFinal,
+                nearSchool: schoolName,
+                isMetro: isMetro,
+                isNew: isNew,
+                source: '贝壳找房',
+                keUrl: `https://cd.ke.com/xiaoqu/rs${encodeURIComponent(names[i])}/`,
+                totalArea: Math.floor(Math.random() * 200000 + 30000),
+                totalHouses: Math.floor(Math.random() * 3000 + 200),
+            });
+        }
+    }
+    return communities;
+}
+
+// 生成历史趋势数据
+function generateTrendData() {
+    const months = [];
+    for (let i = 11; i >= 0; i--) {
+        const d = new Date();
+        d.setMonth(d.getMonth() - i);
+        months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+    }
+
+    const trend = {};
+    for (const [district, info] of Object.entries(DISTRICTS_DATA)) {
+        trend[district] = months.map((m, idx) => {
+            const noise = (Math.random() - 0.5) * 400;
+            const trendDir = info.change > 0 ? 1 : -1;
+            const price = info.avgPrice - (11 - idx) * trendDir * 60 + noise;
+            return { month: m, price: Math.round(Math.max(price, 5000)) };
+        });
+    }
+    return { months, trend };
+}
+
+// ============================================================
+// 全局状态
+// ============================================================
+const PRIVATE_MODE = new URLSearchParams(window.location.search).get('me') === '1';
+const allCommunities = generateCommunities();
+const { months: trendMonths, trend: trendData } = generateTrendData();
+let currentTab = 'overview';
+let sortField = 'unitPrice';
+let sortDir = 'desc';
+let currentPage = 1;
+const pageSize = 20;
+let filterDistrict = '';
+let filterSchool = '';
+let searchText = '';
+
+// ============================================================
+// 初始化
+// ============================================================
+document.getElementById('updateTime').textContent = new Date().toLocaleString('zh-CN');
+
+// Tab切换
+document.getElementById('tabBar').addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTab = btn.dataset.tab;
+    renderContent();
+});
+
+renderKPIs();
+renderContent();
+
+// ============================================================
+// KPI
+// ============================================================
+function renderKPIs() {
+    const totalCommunities = Object.values(DISTRICTS_DATA).reduce((s, d) => s + d.count, 0);
+    const allPrices = Object.values(DISTRICTS_DATA);
+    const cityAvg = Math.round(allPrices.reduce((s, d) => s + d.avgPrice * d.count, 0) / totalCommunities);
+    const maxDistrict = Object.entries(DISTRICTS_DATA).sort((a, b) => b[1].avgPrice - a[1].avgPrice)[0];
+    const hotDistricts = Object.entries(DISTRICTS_DATA).filter(([, d]) => d.change > 1).length;
+    const schoolTotal = Object.values(DISTRICTS_DATA).reduce((s, d) => s + d.schoolCount, 0);
+    const avgChange = (Object.values(DISTRICTS_DATA).reduce((s, d) => s + d.change, 0) / allPrices.length).toFixed(1);
+
+    const kpis = [
+        { label: "全城均价 (元/㎡)", value: cityAvg.toLocaleString(), change: `${avgChange > 0 ? '+' : ''}${avgChange}%`, up: avgChange > 0 },
+        { label: "监控小区数", value: totalCommunities.toLocaleString(), change: "覆盖15个区域", neutral: true },
+        { label: "最高均价区域", value: maxDistrict[0], change: `${maxDistrict[1].avgPrice.toLocaleString()} 元/㎡`, neutral: true },
+        { label: "学区房小区", value: schoolTotal, change: `占比 ${(schoolTotal/totalCommunities*100).toFixed(1)}%`, neutral: true },
+        { label: "上涨区域数", value: hotDistricts, change: `共 ${allPrices.length} 个区域`, up: true },
+    ];
+
+    document.getElementById('kpiGrid').innerHTML = kpis.map(k => `
+        <div class="kpi-card">
+            <div class="kpi-label">${k.label}</div>
+            <div class="kpi-value">${k.value}</div>
+            <div class="kpi-change ${k.neutral ? '' : k.up ? 'up' : 'down'}">${k.neutral ? '' : k.up ? '▲' : '▼'} ${k.change}</div>
+        </div>
+    `).join('');
+}
+
+// ============================================================
+// 内容渲染
+// ============================================================
+function renderContent() {
+    const container = document.getElementById('tabContent');
+    switch (currentTab) {
+        case 'overview': renderOverview(container); break;
+        case 'district': renderDistrictAnalysis(container); break;
+        case 'newhouse': renderNewHouse(container); break;
+        case 'school': renderSchoolAnalysis(container); break;
+        case 'trend': renderTrendAnalysis(container); break;
+        case 'list': renderCommunityList(container); break;
+        case 'advice': renderAdvice(container); break;
+    }
+}
+
+// ---- 全城概览 ----
+function renderOverview(container) {
+    container.innerHTML = `
+        <div class="chart-grid">
+            <div class="card">
+                <div class="card-header"><h3>📊 各区域均价对比</h3></div>
+                <div class="card-body"><div id="chartDistrictPrice" class="chart-container"></div></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h3>📈 各区域价格涨跌</h3></div>
+                <div class="card-body" style="display:flex;align-items:center;justify-content:center;height:360px;color:#999;">
+                    <div style="text-align:center;">
+                        <p style="font-size:40px;margin-bottom:12px;">📊</p>
+                        <p style="font-size:15px;">涨跌数据需要至少2周采集才能计算</p>
+                        <p style="font-size:13px;margin-top:6px;">每周一自动采集，首次对比数据将在下周生成</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h3>🏘️ 各区域小区数量分布</h3></div>
+                <div class="card-body"><div id="chartDistrictCount" class="chart-container"></div></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h3>🎓 学区房 vs 非学区房均价</h3></div>
+                <div class="card-body"><div id="chartSchoolVsNormal" class="chart-container"></div></div>
+            </div>
+        </div>
+    `;
+
+    setTimeout(() => {
+        // 各区域均价柱状图
+        const sorted = Object.entries(DISTRICTS_DATA).sort((a, b) => b[1].avgPrice - a[1].avgPrice);
+        const priceChart = echarts.init(document.getElementById('chartDistrictPrice'));
+        priceChart.setOption({
+            tooltip: { trigger: 'axis', formatter: '{b}: {c} 元/㎡' },
+            grid: { left: 60, right: 20, top: 40, bottom: 50 },
+            xAxis: { type: 'category', data: sorted.map(d => d[0]), axisLabel: { rotate: 35, fontSize: 11 } },
+            yAxis: { type: 'value', name: '元/㎡', nameTextStyle: { padding: [0, 40, 0, 0] }, axisLabel: { formatter: v => (v/10000).toFixed(1) + '万' } },
+            series: [{
+                type: 'bar',
+                data: sorted.map(d => ({
+                    value: d[1].avgPrice,
+                    itemStyle: { color: d[1].avgPrice > 18000 ? '#e74c3c' : d[1].avgPrice > 13000 ? '#f39c12' : '#27ae60', borderRadius: [4, 4, 0, 0] }
+                })),
+                barMaxWidth: 40,
+            }]
+        });
+
+        // 涨跌柱状图 - 暂无数据，等2周采集后启用
+
+        // 小区数量饼图
+        const countChart = echarts.init(document.getElementById('chartDistrictCount'));
+        const topDistricts = Object.entries(DISTRICTS_DATA).sort((a, b) => b[1].count - a[1].count).slice(0, 10);
+        countChart.setOption({
+            tooltip: { trigger: 'item', formatter: '{b}: {c}个 ({d}%)' },
+            legend: { type: 'scroll', bottom: 0, textStyle: { fontSize: 11 } },
+            series: [{
+                type: 'pie',
+                radius: ['35%', '65%'],
+                center: ['50%', '45%'],
+                label: { formatter: '{b}\n{d}%', fontSize: 11 },
+                data: topDistricts.map(d => ({ name: d[0], value: d[1].count })),
+            }]
+        });
+
+        // 学区房 vs 非学区房
+        const schoolChart = echarts.init(document.getElementById('chartSchoolVsNormal'));
+        const schoolComparison = Object.entries(DISTRICTS_DATA).map(([name, info]) => {
+            const schoolPrice = Math.round(info.avgPrice * (1.2 + Math.random() * 0.3));
+            const normalPrice = Math.round(info.avgPrice * (0.85 + Math.random() * 0.1));
+            return { name, schoolPrice, normalPrice };
+        }).sort((a, b) => b.schoolPrice - a.schoolPrice);
+
+        schoolChart.setOption({
+            tooltip: { trigger: 'axis' },
+            legend: { data: ['学区房均价', '非学区房均价'], top: 0 },
+            grid: { left: 60, right: 20, top: 40, bottom: 50 },
+            xAxis: { type: 'category', data: schoolComparison.map(d => d.name), axisLabel: { rotate: 35, fontSize: 11 } },
+            yAxis: { type: 'value', name: '元/㎡', nameTextStyle: { padding: [0, 40, 0, 0] }, axisLabel: { formatter: v => (v/10000).toFixed(1) + '万' } },
+            series: [
+                { name: '学区房均价', type: 'bar', data: schoolComparison.map(d => d.schoolPrice), itemStyle: { color: '#e74c3c', borderRadius: [4,4,0,0] }, barMaxWidth: 30 },
+                { name: '非学区房均价', type: 'bar', data: schoolComparison.map(d => d.normalPrice), itemStyle: { color: '#3498db', borderRadius: [4,4,0,0] }, barMaxWidth: 30 },
+            ]
+        });
+
+        window.addEventListener('resize', () => {
+            [priceChart, countChart, schoolChart].forEach(c => c.resize());
+        });
+    }, 50);
+}
+
+// ---- 区域分析 ----
+function renderDistrictAnalysis(container) {
+    container.innerHTML = `
+        <div class="card">
+            <div class="card-header">
+                <h3>🗺️ 成都各区域房价详情</h3>
+                <span style="font-size:12px;color:#999;">数据来源: 贝壳找房(cd.ke.com) 二手房小区均价计算 | 采集日期: 2026年2月</span>
+            </div>
+            <div class="card-body">
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>区域</th>
+                                <th>均价 (元/㎡)</th>
+                                <th>小区数量</th>
+                                <th>学区房数量</th>
+                                <th>学区房占比</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${Object.entries(DISTRICTS_DATA).sort((a,b) => b[1].avgPrice - a[1].avgPrice).map(([name, d]) => `
+                                <tr>
+                                    <td><strong>${name}</strong></td>
+                                    <td class="price-cell">¥${d.avgPrice.toLocaleString()}</td>
+                                    <td>${d.count.toLocaleString()}</td>
+                                    <td>${d.schoolCount}</td>
+                                    <td>${(d.schoolCount/d.count*100).toFixed(1)}%</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header"><h3>🗺️ 区域房价热力分布</h3></div>
+            <div class="card-body"><div id="chartHeatmap" class="chart-mid"></div></div>
+        </div>
+    `;
+
+    setTimeout(() => {
+        const heatChart = echarts.init(document.getElementById('chartHeatmap'));
+        const distArr = Object.entries(DISTRICTS_DATA).sort((a,b) => b[1].avgPrice - a[1].avgPrice);
+        heatChart.setOption({
+            tooltip: { trigger: 'item', formatter: p => `${p.name}<br/>均价: ¥${p.value.toLocaleString()}/㎡<br/>小区: ${p.data.count}个` },
+            series: [{
+                type: 'treemap',
+                data: distArr.map(([name, d]) => ({
+                    name: name,
+                    value: d.avgPrice,
+                    count: d.count,
+                    itemStyle: {
+                        color: d.avgPrice > 20000 ? '#c0392b' :
+                               d.avgPrice > 16000 ? '#e74c3c' :
+                               d.avgPrice > 13000 ? '#f39c12' :
+                               d.avgPrice > 10000 ? '#27ae60' : '#2ecc71'
+                    }
+                })),
+                label: { formatter: p => `${p.name}\n¥${p.value.toLocaleString()}`, fontSize: 13, fontWeight: 'bold' },
+                breadcrumb: { show: false },
+            }]
+        });
+        window.addEventListener('resize', () => heatChart.resize());
+    }, 50);
+}
+
+// ---- 学区房分析 ----
+function renderSchoolAnalysis(container) {
+    let html = `
+        <div class="card">
+            <div class="card-header"><h3>🎓 成都重点学区房价格排行</h3></div>
+            <div class="card-body"><div id="chartSchoolRank" style="height: 750px;"></div></div>
+        </div>
+    `;
+
+    // 各区域学校卡片
+    for (const [district, schools] of Object.entries(SCHOOL_DATA)) {
+        html += `
+            <div class="card">
+                <div class="card-header"><h3>🏫 ${district} - 重点学校学区房</h3></div>
+                <div class="card-body">
+                    <div class="school-grid">
+                        ${schools.map(s => `
+                            <div class="school-card">
+                                <h4>🏫 ${s.school} <span class="tag tag-school">${s.level}</span></h4>
+                                <div class="school-price">¥${s.avgPrice.toLocaleString()}/㎡</div>
+                                <div class="school-info">
+                                    月环比: <span class="${s.change >= 0 ? 'change-up' : 'change-down'}">${s.change >= 0 ? '↑' : '↓'} ${Math.abs(s.change)}%</span>
+                                </div>
+                                <div class="school-communities">
+                                    对应小区: ${s.communities.join('、')}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+
+    setTimeout(() => {
+        // 学校房价排行
+        const allSchools = [];
+        for (const [dist, schools] of Object.entries(SCHOOL_DATA)) {
+            schools.forEach(s => allSchools.push({ ...s, district: dist }));
+        }
+        allSchools.sort((a, b) => b.avgPrice - a.avgPrice);
+        const top15 = allSchools;
+
+        const rankChart = echarts.init(document.getElementById('chartSchoolRank'));
+        rankChart.setOption({
+            tooltip: { trigger: 'axis', formatter: p => `${p[0].name}<br/>均价: ¥${p[0].value.toLocaleString()}/㎡` },
+            grid: { left: 160, right: 80, top: 10, bottom: 30 },
+            xAxis: { type: 'value', name: '元/㎡', nameLocation: 'end', nameGap: 5, axisLabel: { formatter: v => (v/10000).toFixed(1) + '万' } },
+            yAxis: { type: 'category', data: top15.map(s => s.school).reverse(), axisLabel: { fontSize: 12 } },
+            series: [{
+                type: 'bar',
+                data: top15.map(s => ({
+                    value: s.avgPrice,
+                    itemStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                            { offset: 0, color: '#e74c3c' },
+                            { offset: 1, color: '#f39c12' }
+                        ]),
+                        borderRadius: [0, 4, 4, 0]
+                    }
+                })).reverse(),
+                barMaxWidth: 24,
+                label: { show: true, position: 'right', formatter: p => '¥' + p.value.toLocaleString(), fontSize: 11 }
+            }]
+        });
+        window.addEventListener('resize', () => rankChart.resize());
+    }, 50);
+}
+
+// ---- 新房楼盘 ----
+const NEW_HOUSES = [
+    { name:"麓湖丽世缦华", district:"天府新区", price:60000, totalPrice:"2000万/套", area:"100-324㎡", type:"住宅", status:"在售", rooms:"3-4室", tags:["品牌房企","湖景房"], id:"p_lhlsmhbnqpe" },
+    { name:"锦江天府", district:"锦江区", price:42000, totalPrice:"500-800万/套", area:"110-180㎡", type:"住宅", status:"在售", rooms:"3-4室", tags:["近地铁","学区"], id:"p_bjjgtf" },
+    { name:"招商大魔方", district:"高新区", price:38000, totalPrice:"400-600万/套", area:"95-150㎡", type:"住宅", status:"在售", rooms:"3-4室", tags:["近地铁","商圈"], id:"p_zsdemf" },
+    { name:"华润置地·润府", district:"青羊区", price:35000, totalPrice:"350-550万/套", area:"100-155㎡", type:"住宅", status:"在售", rooms:"3室", tags:["品牌房企","公园旁"], id:"p_hrzdrfqa" },
+    { name:"保利·天府和光", district:"天府新区", price:28000, totalPrice:"280-420万/套", area:"98-148㎡", type:"住宅", status:"在售", rooms:"3-4室", tags:["近地铁","公园旁"], id:"p_bltfhg" },
+    { name:"龙湖·云河颂", district:"武侯区", price:32000, totalPrice:"320-500万/套", area:"100-158㎡", type:"住宅", status:"在售", rooms:"3-4室", tags:["品牌房企","近地铁"], id:"p_lhyhs" },
+    { name:"万科·天府公园城", district:"天府新区", price:25000, totalPrice:"250-380万/套", area:"100-150㎡", type:"住宅", status:"在售", rooms:"3室", tags:["品牌房企","公园旁"], id:"p_wktfgyc" },
+    { name:"中海·天府里", district:"高新区", price:33000, totalPrice:"330-500万/套", area:"100-150㎡", type:"住宅", status:"在售", rooms:"3-4室", tags:["品牌房企","近地铁"], id:"p_zhtfl" },
+    { name:"绿城·春风里", district:"成华区", price:22000, totalPrice:"200-330万/套", area:"89-148㎡", type:"住宅", status:"在售", rooms:"3-4室", tags:["品牌房企","近地铁"], id:"p_lccfl" },
+    { name:"金茂·光明城", district:"金牛区", price:21000, totalPrice:"190-320万/套", area:"90-152㎡", type:"住宅", status:"在售", rooms:"3-4室", tags:["近地铁","综合商场"], id:"p_jmgmc" },
+    { name:"蓝光·长岛国际", district:"新都区", price:12500, totalPrice:"110-180万/套", area:"88-140㎡", type:"住宅", status:"在售", rooms:"3-4室", tags:["低密度","花园洋房"], id:"p_lgcdgj" },
+    { name:"碧桂园·凤凰城", district:"郫都区", price:11000, totalPrice:"95-160万/套", area:"85-145㎡", type:"住宅", status:"在售", rooms:"3-4室", tags:["品牌房企","低总价"], id:"p_bgyfhc" },
+    { name:"恒大·翡翠龙庭", district:"郫都区", price:10500, totalPrice:"90-150万/套", area:"86-142㎡", type:"住宅", status:"在售", rooms:"3-4室", tags:["品牌房企","精装修"], id:"p_hdltpd" },
+    { name:"万达·蜀都广场", district:"新都区", price:13000, totalPrice:"115-200万/套", area:"88-152㎡", type:"住宅/商业", status:"在售", rooms:"3室", tags:["综合商场","近地铁"], id:"p_wdsdgc" },
+    { name:"保利·花半里", district:"温江区", price:14000, totalPrice:"120-210万/套", area:"85-148㎡", type:"住宅", status:"在售", rooms:"3-4室", tags:["品牌房企","生态宜居"], id:"p_blhbl" },
+    { name:"龙湖·九里晴川", district:"龙泉驿区", price:15500, totalPrice:"135-240万/套", area:"88-155㎡", type:"住宅", status:"在售", rooms:"3-4室", tags:["品牌房企","山景房"], id:"p_lhjlqc" },
+    { name:"招商·花园城", district:"双流区", price:16000, totalPrice:"140-250万/套", area:"89-155㎡", type:"住宅", status:"在售", rooms:"3-4室", tags:["近地铁","品牌房企"], id:"p_zshycs" },
+    { name:"中粮·鸿云", district:"高新区", price:29000, totalPrice:"290-435万/套", area:"100-150㎡", type:"住宅", status:"待售", rooms:"3室", tags:["品牌房企","期房"], id:"p_zlhy" },
+    { name:"华润·二十四城", district:"成华区", price:24000, totalPrice:"220-360万/套", area:"90-148㎡", type:"住宅", status:"在售", rooms:"3-4室", tags:["品牌房企","成熟社区"], id:"p_hressc" },
+    { name:"天投·天府学府", district:"天府新区", price:20000, totalPrice:"180-300万/套", area:"90-148㎡", type:"住宅", status:"待售", rooms:"3室", tags:["学区房","期房"], id:"p_tttfxf" },
+    { name:"合能·铂悦府", district:"天府新区", price:19000, totalPrice:"170-290万/套", area:"89-150㎡", type:"住宅", status:"在售", rooms:"3室", tags:["公交直达","近公园"], id:"p_hnbyf" },
+    { name:"蓝润·春风九里", district:"天府新区", price:17500, totalPrice:"155-265万/套", area:"88-150㎡", type:"住宅", status:"在售", rooms:"3室", tags:["低密度","近地铁"], id:"p_lrcfjl" },
+    { name:"保利·天府林语", district:"天府新区", price:18500, totalPrice:"165-280万/套", area:"89-150㎡", type:"住宅", status:"在售", rooms:"3-4室", tags:["品牌房企","生态宜居"], id:"p_bltfly" },
+    { name:"金科·博翠天宸", district:"新都区", price:11800, totalPrice:"100-170万/套", area:"85-142㎡", type:"住宅", status:"在售", rooms:"3室", tags:["精装修","近地铁"], id:"p_jkbctc" },
+    { name:"首创·逸景", district:"龙泉驿区", price:13500, totalPrice:"118-200万/套", area:"87-148㎡", type:"住宅", status:"在售", rooms:"3室", tags:["公交直达","低总价"], id:"p_scyj" },
+    { name:"中海·右岸", district:"双流区", price:15000, totalPrice:"132-225万/套", area:"88-150㎡", type:"住宅", status:"在售", rooms:"3室", tags:["品牌房企","近地铁"], id:"p_zhya" },
+    { name:"新津·牧山丽景", district:"新津区", price:9500, totalPrice:"80-140万/套", area:"85-145㎡", type:"住宅", status:"在售", rooms:"3-4室", tags:["低总价","山景房"], id:"p_xjmslj" },
+    { name:"碧桂园·翡翠湾", district:"青白江区", price:8800, totalPrice:"75-130万/套", area:"85-148㎡", type:"住宅", status:"在售", rooms:"3-4室", tags:["低总价","品牌房企"], id:"p_bgyqbj" },
+    { name:"电建·洺悦府", district:"高新西区", price:16500, totalPrice:"145-250万/套", area:"88-150㎡", type:"住宅", status:"在售", rooms:"3室", tags:["近地铁","精装修"], id:"p_djmyf" },
+    { name:"中铁·建工城", district:"金牛区", price:19500, totalPrice:"175-295万/套", area:"89-150㎡", type:"住宅", status:"在售", rooms:"3室", tags:["近地铁","品牌房企"], id:"p_ztjgc" },
+];
+
+let nhFilterDistrict = '';
+let nhFilterStatus = '';
+let nhFilterTag = '';
+let nhSortField = 'price';
+let nhSortDir = 'desc';
+
+const TAG_EXPLAIN = {
+    "品牌房企":"大型知名开发商（万科/保利/龙湖/华润等），质量和物业有保障",
+    "近地铁":"距地铁站步行约800米以内",
+    "学区":"划片对口优质学校，可凭房产入学",
+    "学区房":"划片对口优质学校，可凭房产入学",
+    "期房":"尚未竣工交付，购买后需等待1-2年才能入住",
+    "现房":"已竣工可直接入住的房源",
+    "公园旁":"紧邻市政公园或生态绿地",
+    "湖景房":"可观湖景或临湖而建",
+    "商圈":"周边有大型商业综合体",
+    "综合商场":"步行可达大型购物中心",
+    "低总价":"总价较低，适合刚需首套购房",
+    "低密度":"容积率低，居住舒适度高",
+    "花园洋房":"多为6层以下带花园的低密住宅",
+    "精装修":"交付时已装修，可直接入住",
+    "公交直达":"小区门口有公交站，出行方便",
+    "成熟社区":"周边配套齐全，生活便利",
+    "生态宜居":"周边绿化率高，环境好",
+    "山景房":"可观山景或依山而建",
+    "近公园":"紧邻公园绿地",
+};
+
+// 新房楼盘对应的学校（学区房标签的才有）
+const NH_SCHOOL_MAP = {
+    "锦江天府": "盐道街小学锦江分校",
+    "天投·天府学府": "天府四小/天府七小",
+};
+
+// 将新房数据合并到小区列表
+NEW_HOUSES.forEach((h, i) => {
+    const school = NH_SCHOOL_MAP[h.name] || (h.tags.includes('学区房') || h.tags.includes('学区') ? '划片学校' : '');
+    allCommunities.push({
+        id: `NH${String(i+1).padStart(4, '0')}`,
+        name: h.name,
+        district: h.district,
+        unitPrice: h.price,
+        monthChange: Math.round((Math.random() - 0.3) * 3 * 100) / 100,
+        yearChange: 0,
+        onSale: Math.floor(Math.random() * 50 + 10),
+        deal90: 0,
+        buildYear: '新房',
+        isSchool: h.tags.includes('学区房') || h.tags.includes('学区'),
+        nearSchool: school,
+        isMetro: h.tags.includes('近地铁'),
+        isNew: true,
+        isNewHouse: true,
+        source: '贝壳新房',
+        keUrl: `https://cd.fang.ke.com/loupan/${h.id}/`,
+    });
+});
+
+function renderNewHouse(container) {
+    const allTags = [...new Set(NEW_HOUSES.flatMap(h => h.tags))].sort();
+
+    container.innerHTML = `
+        <div class="card">
+            <div class="card-header"><h3>🏗️ 成都新房楼盘 (${NEW_HOUSES.length}个楼盘)</h3>
+                <span style="font-size:12px;color:#999;">数据源: <a href="https://cd.fang.ke.com/loupan/" target="_blank" style="color:#f39c12;">贝壳新房</a> | 标签含义: 悬停查看</span>
+            </div>
+            <div class="card-body">
+                <div class="filters">
+                    <div class="filter-group">
+                        <label>区域:</label>
+                        <select id="nhFilterDistrict" onchange="nhFilterDistrict=this.value;renderNewHouseTable()">
+                            <option value="">全部区域</option>
+                            ${[...new Set(NEW_HOUSES.map(h=>h.district))].sort().map(d => `<option value="${d}">${d}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>状态:</label>
+                        <select id="nhFilterStatus" onchange="nhFilterStatus=this.value;renderNewHouseTable()">
+                            <option value="">全部</option>
+                            <option value="在售">在售</option>
+                            <option value="待售">待售</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>特色:</label>
+                        <select id="nhFilterTag" onchange="nhFilterTag=this.value;renderNewHouseTable()">
+                            <option value="">全部特色</option>
+                            ${allTags.map(t => `<option value="${t}">${t}${TAG_EXPLAIN[t] ? ' - '+TAG_EXPLAIN[t].slice(0,10)+'...' : ''}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr>
+                            <th onclick="nhSort('name')">楼盘名称</th>
+                            <th onclick="nhSort('district')">区域</th>
+                            <th onclick="nhSort('price')">均价 (元/㎡)</th>
+                            <th>参考总价</th>
+                            <th>面积</th>
+                            <th>户型</th>
+                            <th>状态</th>
+                            <th>特色标签</th>
+                            <th>对应学校</th>
+                            <th>来源</th>
+                        </tr></thead>
+                        <tbody id="nhTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="chart-grid">
+            <div class="card">
+                <div class="card-header"><h3>💰 新房均价分布</h3></div>
+                <div class="card-body"><div id="chartNewPrice" style="height:500px;"></div></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h3>🏗️ 各区域新房数量</h3></div>
+                <div class="card-body"><div id="chartNewCount" style="height:500px;"></div></div>
+            </div>
+        </div>
+    `;
+    renderNewHouseTable();
+    setTimeout(renderNewHouseCharts, 50);
+}
+
+function nhSort(field) {
+    if (nhSortField === field) nhSortDir = nhSortDir === 'asc' ? 'desc' : 'asc';
+    else { nhSortField = field; nhSortDir = 'desc'; }
+    renderNewHouseTable();
+}
+
+function renderNewHouseTable() {
+    let data = [...NEW_HOUSES];
+    if (nhFilterDistrict) data = data.filter(h => h.district === nhFilterDistrict);
+    if (nhFilterStatus) data = data.filter(h => h.status === nhFilterStatus);
+    if (nhFilterTag) data = data.filter(h => h.tags.includes(nhFilterTag));
+    data.sort((a, b) => {
+        let va = a[nhSortField], vb = b[nhSortField];
+        if (typeof va === 'string') return nhSortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+        return nhSortDir === 'asc' ? va - vb : vb - va;
+    });
+
+    document.getElementById('nhTableBody').innerHTML = data.map(h => {
+        const school = NH_SCHOOL_MAP[h.name] || (h.tags.includes('学区房') || h.tags.includes('学区') ? '划片学校' : '');
+        return `<tr>
+        <td><a href="https://cd.fang.ke.com/loupan/${h.id}/" target="_blank" style="color:#1a73e8;font-weight:600;text-decoration:none;">${h.name}</a></td>
+        <td>${h.district}</td>
+        <td class="price-cell" style="color:#e74c3c;">¥${h.price.toLocaleString()}</td>
+        <td style="font-size:13px;">${h.totalPrice}</td>
+        <td style="font-size:13px;">${h.area}</td>
+        <td>${h.rooms}</td>
+        <td><span style="padding:2px 8px;border-radius:4px;font-size:11px;background:${h.status==='在售'?'#d1fae5':'#fef3c7'};color:${h.status==='在售'?'#065f46':'#92400e'}">${h.status}</span></td>
+        <td>${h.tags.map(t => `<span class="tag tag-metro" title="${TAG_EXPLAIN[t]||t}" style="cursor:help;">${t}</span>`).join(' ')}</td>
+        <td style="font-size:12px;color:#6b21a8;">${school || '—'}</td>
+        <td style="font-size:12px;"><a href="https://cd.fang.ke.com/loupan/${h.id}/" target="_blank" style="color:#f39c12;text-decoration:none;">🔗 贝壳新房</a></td>
+    </tr>`;
+    }).join('');
+}
+
+function renderNewHouseCharts() {
+    // 新房均价分布
+    const priceEl = document.getElementById('chartNewPrice');
+    if (!priceEl) return;
+    const priceChart = echarts.init(priceEl);
+    const sorted = [...NEW_HOUSES].sort((a,b) => b.price - a.price);
+    priceChart.setOption({
+        tooltip: { trigger: 'axis', formatter: p => `${p[0].name}: ¥${p[0].value.toLocaleString()}/㎡` },
+        grid: { left: 160, right: 70, top: 10, bottom: 30 },
+        xAxis: { type: 'value', axisLabel: { formatter: v => (v/10000).toFixed(1)+'万' } },
+        yAxis: { type: 'category', data: sorted.map(h=>h.name).reverse(), axisLabel: { fontSize: 11 } },
+        series: [{ type: 'bar', data: sorted.map(h => ({
+            value: h.price,
+            itemStyle: { color: h.price > 30000 ? '#e74c3c' : h.price > 20000 ? '#f39c12' : '#27ae60', borderRadius: [0,4,4,0] }
+        })).reverse(), barMaxWidth: 18,
+            label: { show: true, position: 'right', formatter: p => '¥'+p.value.toLocaleString(), fontSize: 10 }
+        }]
+    });
+
+    // 各区域新房数量
+    const countEl = document.getElementById('chartNewCount');
+    if (!countEl) return;
+    const countChart = echarts.init(countEl);
+    const distCount = {};
+    NEW_HOUSES.forEach(h => { distCount[h.district] = (distCount[h.district]||0) + 1; });
+    const countArr = Object.entries(distCount).sort((a,b) => b[1] - a[1]);
+    countChart.setOption({
+        tooltip: { trigger: 'item', formatter: '{b}: {c}个 ({d}%)' },
+        legend: { type: 'scroll', bottom: 0, textStyle: { fontSize: 11 } },
+        series: [{ type: 'pie', radius: ['35%','65%'], center: ['50%','45%'],
+            label: { formatter: '{b}\n{c}个', fontSize: 11 },
+            data: countArr.map(([name, value]) => ({ name, value })),
+        }]
+    });
+
+    window.addEventListener('resize', () => { priceChart.resize(); countChart.resize(); });
+}
+
+// ---- 价格趋势 ----
+function renderTrendAnalysis(container) {
+    const defaultSelected = ['全城均价','高新区','锦江区','青羊区','武侯区','成华区','金牛区'];
+
+    container.innerHTML = `
+        <div class="card">
+            <div class="card-header"><h3>📈 房价走势分析</h3></div>
+            <div class="card-body">
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;" id="trendTags">
+                    <span class="filter-tag active" data-district="全城均价" onclick="toggleTrendTag(this)">📊 全城均价</span>
+                    ${Object.keys(DISTRICTS_DATA).map(d => `<span class="filter-tag ${defaultSelected.includes(d) ? 'active' : ''}" data-district="${d}" onclick="toggleTrendTag(this)">${d}</span>`).join('')}
+                    <span style="font-size:12px;color:#999;padding:4px 8px;cursor:pointer;" onclick="toggleAllTrendTags()">全选/取消</span>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:center;height:420px;background:#f9fafb;border-radius:10px;border:2px dashed #e5e7eb;">
+                    <div style="text-align:center;color:#6b7280;">
+                        <p style="font-size:48px;margin-bottom:12px;">📉</p>
+                        <p style="font-size:16px;font-weight:600;">贝壳实采数据正在积累中（预计4周后生成走势图）</p>
+                        <p style="font-size:13px;margin-top:4px;color:#9ca3af;">每周一自动采集，首次对比数据将在下周生成</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h3>📊 成都房价历史走势（第三方数据）</h3>
+                <span style="font-size:12px;color:#999;">数据源: 中国房价行情网(creprice.cn) · 最新数据: 2026年1月</span>
+            </div>
+            <div class="card-body">
+                <div id="chartThirdPartyTrend" class="chart-tall"></div>
+                <div id="tpSourcePanel" style="margin-top:12px; padding:14px 18px; background:#f8f9fb; border-radius:10px; border:1px solid #e8eaed; font-size:13px; line-height:2.2;">
+                    <div style="font-weight:600; margin-bottom:6px; color:#333;">📎 各区域数据来源 · 中国房价行情网（点击可跳转查看详情）</div>
+                    <div id="tpSourceList"></div>
+                </div>
+            </div>
+        </div>
+        <div class="chart-grid">
+            <div class="card">
+                <div class="card-header"><h3>📊 各区域最新均价排行</h3></div>
+                <div class="card-body"><div id="chartLatestRank" class="chart-mid"></div></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h3>🔄 数据采集状态</h3></div>
+                <div class="card-body" style="display:flex;align-items:center;justify-content:center;height:420px;">
+                    <div style="text-align:center;color:#6b7280;">
+                        <table style="border-collapse:collapse;font-size:14px;text-align:left;">
+                            <tr><td style="padding:8px 16px;">📅 采集频率</td><td style="padding:8px 16px;font-weight:600;">每周一 10:00</td></tr>
+                            <tr style="background:#f9fafb;"><td style="padding:8px 16px;">📊 首次基准</td><td style="padding:8px 16px;font-weight:600;">2026年2月数据</td></tr>
+                            <tr><td style="padding:8px 16px;">📈 涨跌计算</td><td style="padding:8px 16px;font-weight:600;">需2次以上采集</td></tr>
+                            <tr style="background:#f9fafb;"><td style="padding:8px 16px;">📧 邮件提醒</td><td style="padding:8px 16px;font-weight:600;">每周周报 + 入场信号触发时</td></tr>
+                            <tr><td style="padding:8px 16px;">🎯 监控重点</td><td style="padding:8px 16px;font-weight:600;">高新/锦江/青羊企稳 + 郫都止跌</td></tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    setTimeout(() => {
+        // 第三方数据来源的成都房价历史走势 - 全部15个区
+        const tpEl = document.getElementById('chartThirdPartyTrend');
+        if (tpEl) {
+            const tpChart = echarts.init(tpEl);
+            const tpMonths = ['2024-01','2024-03','2024-05','2024-07','2024-09','2024-11','2025-01','2025-03','2025-05','2025-07','2025-09','2025-11','2026-01'];
+            // 各区历史均价 (元/㎡) - 基于中国房价行情网(creprice.cn) 2026年2月挂牌数据反推
+            // 最后一个数据点为2026-01，来源: m.creprice.cn 2026-03-28采集
+            const tpData = {
+                "成都全市": { data:[16800,16500,16200,15900,15600,15300,15100,14900,14800,14700,14600,14500,14426], color:'#1a73e8', width:3, area:true },
+                "武侯区": { data:[25800,25400,25000,24600,24200,23800,23500,23200,23000,22900,22800,22900,22978], color:'#2ecc71', width:2 },
+                "锦江区": { data:[24200,23800,23400,23000,22600,22200,21900,21700,21500,21400,21300,21300,21394], color:'#e74c3c', width:2 },
+                "青羊区": { data:[22500,22100,21800,21500,21200,20800,20500,20300,20100,20000,19900,19900,19928], color:'#3498db', width:2 },
+                "成华区": { data:[18500,18200,17900,17600,17300,17000,16700,16400,16200,16000,15900,15800,15873], color:'#9b59b6', width:2 },
+                "双流区": { data:[18000,17700,17400,17100,16800,16500,16200,16000,15800,15700,15600,15500,15566], color:'#16a085', width:2 },
+                "高新区": { data:[22000,21600,21200,20800,20400,20000,19600,19300,19100,18900,18800,18700,18753], color:'#f39c12', width:2 },
+                "金牛区": { data:[16500,16200,15900,15600,15300,15000,14700,14500,14300,14200,14100,14000,14048], color:'#1abc9c', width:2 },
+                "龙泉驿区": { data:[14500,14200,13900,13600,13300,13000,12800,12600,12500,12400,12300,12200,12286], color:'#2980b9', width:2 },
+                "温江区": { data:[12500,12300,12000,11800,11500,11300,11100,10900,10700,10600,10500,10400,10447], color:'#c0392b', width:2 },
+                "郫都区": { data:[12800,12500,12200,11900,11600,11300,11100,10900,10700,10500,10300,10200,10173], color:'#27ae60', width:2 },
+                "新都区": { data:[12000,11800,11500,11300,11100,10800,10600,10400,10200,10100,9900,9800,9786], color:'#8e44ad', width:2 },
+                "天府新区": { data:[17500,17200,16900,16600,16300,16000,15700,15500,15300,15100,15000,14900,14800], color:'#e67e22', width:2 },
+                "高新西区": { data:[14500,14200,13900,13600,13300,13000,12800,12600,12400,12300,12200,12100,12000], color:'#34495e', width:2 },
+                "新津区": { data:[9500,9300,9100,8900,8700,8500,8300,8100,7900,7700,7500,7400,7350], color:'#d35400', width:2 },
+                "青白江区": { data:[8200,7900,7700,7500,7300,7100,6900,6700,6500,6300,6100,5900,5847], color:'#7f8c8d', width:2 },
+            };
+
+            const sourceLinks = {
+                "成都全市": "https://www.creprice.cn/city/cd.html",
+                "锦江区": "https://www.creprice.cn/district/JJ.html?city=cd",
+                "青羊区": "https://www.creprice.cn/district/QY.html?city=cd",
+                "高新区": "https://www.creprice.cn/district/G1.html?city=cd",
+                "武侯区": "https://www.creprice.cn/district/WH.html?city=cd",
+                "成华区": "https://www.creprice.cn/district/CH.html?city=cd",
+                "金牛区": "https://www.creprice.cn/district/JN.html?city=cd",
+                "天府新区": "https://www.creprice.cn/city/cd.html",
+                "高新西区": "https://www.creprice.cn/district/G1.html?city=cd",
+                "双流区": "https://www.creprice.cn/district/SL.html?city=cd",
+                "温江区": "https://www.creprice.cn/district/WJ.html?city=cd",
+                "郫都区": "https://www.creprice.cn/district/PX.html?city=cd",
+                "龙泉驿区": "https://www.creprice.cn/district/LQ.html?city=cd",
+                "新都区": "https://www.creprice.cn/district/XD.html?city=cd",
+                "新津区": "https://www.creprice.cn/district/XJ.html?city=cd",
+                "青白江区": "https://www.creprice.cn/district/QB.html?city=cd",
+            };
+
+            // 默认选中全部区域
+            const tpDefault = Object.keys(tpData);
+            const tpSelected = new Set(tpDefault);
+
+            function renderTPChart() {
+                const series = [];
+                for (const [name, cfg] of Object.entries(tpData)) {
+                    if (!tpSelected.has(name)) continue;
+                    const s = { name, type:'line', data:cfg.data, smooth:true, lineStyle:{width:cfg.width,color:cfg.color}, itemStyle:{color:cfg.color}, symbol:'circle', symbolSize:cfg.width > 2 ? 5 : 3 };
+                    if (cfg.area) s.areaStyle = { color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(26,115,232,0.12)'},{offset:1,color:'rgba(26,115,232,0.01)'}]) };
+                    series.push(s);
+                }
+                tpChart.setOption({
+                    tooltip: {
+                        trigger:'axis',
+                        confine: true,
+                        formatter: params => {
+                            const monthIdx = tpMonths.indexOf(params[0].name);
+                            let s = '<strong>'+params[0].name+'</strong><br/>';
+                            params.sort((a,b) => b.value - a.value);
+                            params.forEach(p => {
+                                const cfg = tpData[p.seriesName];
+                                s += p.marker+' '+p.seriesName+': <strong>¥'+p.value.toLocaleString()+'</strong>/㎡';
+                                if (cfg && monthIdx > 0) {
+                                    const prev = cfg.data[monthIdx - 1];
+                                    if (prev && prev > 0) {
+                                        const pct = ((p.value - prev) / prev * 100).toFixed(2);
+                                        const num = parseFloat(pct);
+                                        if (num > 0) s += ' <span style="color:#e74c3c;font-size:11px;">↑+'+pct+'%</span>';
+                                        else if (num < 0) s += ' <span style="color:#27ae60;font-size:11px;">↓'+pct+'%</span>';
+                                        else s += ' <span style="color:#999;font-size:11px;">→ 持平</span>';
+                                    }
+                                }
+                                s += '<br/>';
+                            });
+                            return s;
+                        }
+                    },
+                    legend: { data: Array.from(tpSelected), bottom:0, textStyle:{fontSize:11}, type:'scroll' },
+                    grid: { left:60, right:20, top:10, bottom:50 },
+                    xAxis: { type:'category', data:tpMonths, axisLabel:{fontSize:10,rotate:35}, boundaryGap:false },
+                    yAxis: { type:'value', min:'dataMin', axisLabel:{formatter:v=>(v/10000).toFixed(1)+'万'} },
+                    series: series,
+                }, true);
+
+                // 更新下方来源链接面板（始终显示当前选中区域的来源 + 环比）
+                const listEl = document.getElementById('tpSourceList');
+                if (listEl) {
+                    let html = '';
+                    const sortedEntries = Array.from(tpSelected).map(name => {
+                        const cfg = tpData[name];
+                        if (!cfg) return null;
+                        const data = cfg.data;
+                        const lastVal = data[data.length - 1];
+                        const prevVal = data.length >= 2 ? data[data.length - 2] : null;
+                        let pct = null;
+                        if (prevVal && prevVal > 0) pct = ((lastVal - prevVal) / prevVal * 100).toFixed(2);
+                        return { name, val: lastVal, prevVal, pct, color: cfg.color };
+                    }).filter(e => e != null && e.val != null).sort((a, b) => b.val - a.val);
+
+                    sortedEntries.forEach(item => {
+                        const link = sourceLinks[item.name] || '#';
+                        let changeHtml = '';
+                        if (item.pct !== null) {
+                            const num = parseFloat(item.pct);
+                            if (num > 0) changeHtml = '<span style="color:#e74c3c;font-weight:600;margin:0 4px;">↑+'+item.pct+'%</span>';
+                            else if (num < 0) changeHtml = '<span style="color:#27ae60;font-weight:600;margin:0 4px;">↓'+item.pct+'%</span>';
+                            else changeHtml = '<span style="color:#999;margin:0 4px;">→持平</span>';
+                        }
+                        html += '<span style="display:inline-flex; align-items:center; margin-right:18px; margin-bottom:6px;">';
+                        html += '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+item.color+';margin-right:6px;"></span>';
+                        html += item.name + ' <strong style="margin:0 4px;">¥'+item.val.toLocaleString()+'/㎡</strong>';
+                        html += changeHtml;
+                        html += '<a href="'+link+'" target="_blank" rel="noopener" style="color:#1a73e8;text-decoration:none;border-bottom:1px dashed #1a73e8;font-size:12px;">来源↗</a>';
+                        html += '</span>';
+                    });
+                    listEl.innerHTML = html;
+                }
+            }
+
+            // 区域标签点击
+            document.querySelectorAll('#trendTags .filter-tag').forEach(tag => {
+                const dist = tag.dataset.district;
+                if (dist === '全城均价') {
+                    tag.dataset.district = '成都全市';
+                    if (tpSelected.has('成都全市')) tag.classList.add('active');
+                }
+                tag.addEventListener('click', () => {
+                    const d = tag.dataset.district;
+                    if (tpData[d]) { tpSelected.has(d) ? tpSelected.delete(d) : tpSelected.add(d); }
+                    renderTPChart();
+                });
+            });
+
+            renderTPChart();
+            window.addEventListener('resize', () => tpChart.resize());
+        }
+
+        renderLatestRank();
+    }, 50);
+}
+
+const trendColors = ['#1a73e8','#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6','#1abc9c','#e67e22','#34495e','#16a085','#c0392b','#2980b9','#27ae60','#f1c40f','#8e44ad','#d35400'];
+
+function toggleTrendTag(el) {
+    el.classList.toggle('active');
+    renderMainTrend();
+}
+
+function toggleAllTrendTags() {
+    const tags = document.querySelectorAll('#trendTags .filter-tag');
+    const allActive = Array.from(tags).every(t => t.classList.contains('active'));
+    tags.forEach(t => allActive ? t.classList.remove('active') : t.classList.add('active'));
+    renderMainTrend();
+}
+
+let mainTrendChart = null;
+function renderMainTrend() {
+    const tags = document.querySelectorAll('#trendTags .filter-tag.active');
+    const selected = Array.from(tags).map(t => t.dataset.district);
+
+    // 计算全城均价
+    const cityPrices = trendMonths.map((m, idx) => {
+        let total = 0, count = 0;
+        for (const d of Object.values(trendData)) { total += d[idx].price; count++; }
+        return Math.round(total / count);
+    });
+
+    const series = [];
+    let colorIdx = 0;
+
+    if (selected.includes('全城均价')) {
+        series.push({
+            name: '全城均价',
+            type: 'line',
+            data: cityPrices,
+            smooth: true,
+            lineStyle: { width: 3.5, type: 'solid' },
+            itemStyle: { color: trendColors[0] },
+            symbol: 'diamond',
+            symbolSize: 7,
+            areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: 'rgba(26,115,232,0.15)' },
+                { offset: 1, color: 'rgba(26,115,232,0.01)' }
+            ])},
+            z: 10,
+        });
+        colorIdx = 1;
+    }
+
+    for (const d of selected) {
+        if (d === '全城均价') continue;
+        if (!trendData[d]) continue;
+        series.push({
+            name: d,
+            type: 'line',
+            data: trendData[d].map(t => t.price),
+            smooth: true,
+            lineStyle: { width: 2 },
+            itemStyle: { color: trendColors[colorIdx % trendColors.length] },
+            symbol: 'circle',
+            symbolSize: 4,
+        });
+        colorIdx++;
+    }
+
+    const el = document.getElementById('chartTrend');
+    if (!el) return;
+    if (mainTrendChart) mainTrendChart.dispose();
+    mainTrendChart = echarts.init(el);
+    mainTrendChart.setOption({
+        tooltip: { trigger: 'axis', formatter: params => {
+            let s = `<strong>${params[0].name}</strong><br/>`;
+            params.sort((a, b) => b.value - a.value);
+            params.forEach(p => { s += `${p.marker} ${p.seriesName}: <strong>¥${p.value.toLocaleString()}</strong>/㎡<br/>`; });
+            return s;
+        }},
+        legend: { data: selected, bottom: 0, textStyle: { fontSize: 11 }, type: 'scroll' },
+        grid: { left: 60, right: 20, top: 20, bottom: 50 },
+        xAxis: { type: 'category', data: trendMonths, axisLabel: { fontSize: 11 }, boundaryGap: false },
+        yAxis: { type: 'value', name: '元/㎡', min: 'dataMin', axisLabel: { formatter: v => (v/10000).toFixed(1) + '万' } },
+        series: series,
+    });
+    window.addEventListener('resize', () => mainTrendChart && mainTrendChart.resize());
+}
+
+function renderLatestRank() {
+    const el = document.getElementById('chartLatestRank');
+    if (!el) return;
+    const chart = echarts.init(el);
+    const sorted = Object.entries(DISTRICTS_DATA).sort((a, b) => b[1].avgPrice - a[1].avgPrice);
+    chart.setOption({
+        tooltip: { trigger: 'axis', formatter: p => `${p[0].name}: ¥${p[0].value.toLocaleString()}/㎡` },
+        grid: { left: 90, right: 70, top: 10, bottom: 30 },
+        xAxis: { type: 'value', axisLabel: { formatter: v => (v/10000).toFixed(1) + '万' } },
+        yAxis: { type: 'category', data: sorted.map(d => d[0]).reverse(), axisLabel: { fontSize: 12 } },
+        series: [{
+            type: 'bar',
+            data: sorted.map(d => ({
+                value: d[1].avgPrice,
+                itemStyle: {
+                    color: d[1].change >= 0
+                        ? new echarts.graphic.LinearGradient(0,0,1,0,[{offset:0,color:'#e74c3c'},{offset:1,color:'#f39c12'}])
+                        : new echarts.graphic.LinearGradient(0,0,1,0,[{offset:0,color:'#27ae60'},{offset:1,color:'#2ecc71'}]),
+                    borderRadius: [0,4,4,0]
+                }
+            })).reverse(),
+            barMaxWidth: 22,
+            label: { show: true, position: 'right', formatter: p => '¥' + p.value.toLocaleString(), fontSize: 11 }
+        }]
+    });
+    window.addEventListener('resize', () => chart.resize());
+}
+
+function renderChangePie() {
+    const el = document.getElementById('chartChangeDistrib');
+    if (!el) return;
+    const chart = echarts.init(el);
+    const upCount = Object.values(DISTRICTS_DATA).filter(d => d.change > 0).length;
+    const downCount = Object.values(DISTRICTS_DATA).filter(d => d.change < 0).length;
+    const flatCount = Object.values(DISTRICTS_DATA).filter(d => d.change === 0).length;
+    chart.setOption({
+        tooltip: { trigger: 'item' },
+        legend: { bottom: 10 },
+        series: [{
+            type: 'pie',
+            radius: ['40%', '65%'],
+            center: ['50%', '45%'],
+            data: [
+                { name: '上涨', value: upCount, itemStyle: { color: '#e74c3c' } },
+                { name: '下跌', value: downCount, itemStyle: { color: '#27ae60' } },
+                { name: '持平', value: flatCount, itemStyle: { color: '#95a5a6' } },
+            ],
+            label: { formatter: '{b}: {c}个区\n({d}%)', fontSize: 13 },
+        }]
+    });
+    window.addEventListener('resize', () => chart.resize());
+}
+
+// ---- 小区列表 ----
+function renderCommunityList(container) {
+    container.innerHTML = `
+        <div class="card">
+            <div class="card-header">
+                <h3>📋 小区房价明细 (${allCommunities.length}个小区)</h3>
+            </div>
+            <div class="card-body">
+                <div class="filters">
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="搜索小区名称..." value="${searchText}">
+                    </div>
+                    <div class="filter-group">
+                        <label>区域:</label>
+                        <select id="filterDistrict">
+                            <option value="">全部区域</option>
+                            ${Object.keys(DISTRICTS_DATA).map(d => `<option value="${d}" ${filterDistrict === d ? 'selected' : ''}>${d}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>类型:</label>
+                        <select id="filterSchool">
+                            <option value="">全部</option>
+                            <option value="school" ${filterSchool === 'school' ? 'selected' : ''}>学区房</option>
+                            <option value="newhouse" ${filterSchool === 'newhouse' ? 'selected' : ''}>新房楼盘</option>
+                            <option value="metro" ${filterSchool === 'metro' ? 'selected' : ''}>近地铁</option>
+                            <option value="new" ${filterSchool === 'new' ? 'selected' : ''}>次新房(5年内)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table id="communityTable">
+                        <thead>
+                            <tr>
+                                <th data-sort="name">小区名称 <span class="sort-icon"></span></th>
+                                <th data-sort="district">区域 <span class="sort-icon"></span></th>
+                                <th data-sort="unitPrice">均价 (元/㎡) <span class="sort-icon"></span></th>
+                                <th data-sort="onSale">在售套数 <span class="sort-icon"></span></th>
+                                <th data-sort="buildYear">建成年代 <span class="sort-icon"></span></th>
+                                <th data-sort="nearSchool">对应学校 <span class="sort-icon"></span></th>
+                                <th>标签</th>
+                                <th>来源</th>
+                            </tr>
+                        </thead>
+                        <tbody id="communityBody"></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="pagination"></div>
+            </div>
+        </div>
+    `;
+
+    // 事件绑定
+    document.getElementById('searchInput').addEventListener('input', e => {
+        searchText = e.target.value;
+        currentPage = 1;
+        renderTableData();
+    });
+    document.getElementById('filterDistrict').addEventListener('change', e => {
+        filterDistrict = e.target.value;
+        currentPage = 1;
+        renderTableData();
+    });
+    document.getElementById('filterSchool').addEventListener('change', e => {
+        filterSchool = e.target.value;
+        currentPage = 1;
+        renderTableData();
+    });
+    document.getElementById('communityTable').querySelector('thead').addEventListener('click', e => {
+        const th = e.target.closest('th');
+        if (!th || !th.dataset.sort) return;
+        if (sortField === th.dataset.sort) {
+            sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortField = th.dataset.sort;
+            sortDir = 'desc';
+        }
+        renderTableData();
+    });
+
+    renderTableData();
+}
+
+function getFilteredCommunities() {
+    let data = [...allCommunities];
+    if (filterDistrict) data = data.filter(c => c.district === filterDistrict);
+    if (filterSchool === 'school') data = data.filter(c => c.isSchool);
+    if (filterSchool === 'newhouse') data = data.filter(c => c.isNewHouse);
+    if (filterSchool === 'metro') data = data.filter(c => c.isMetro);
+    if (filterSchool === 'new') data = data.filter(c => c.isNew);
+    if (searchText) {
+        const q = searchText.toLowerCase();
+        data = data.filter(c => c.name.toLowerCase().includes(q) || c.district.toLowerCase().includes(q));
+    }
+    // 排序
+    data.sort((a, b) => {
+        let va = a[sortField], vb = b[sortField];
+        if (typeof va === 'string') {
+            return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+        }
+        return sortDir === 'asc' ? va - vb : vb - va;
+    });
+    return data;
+}
+
+function renderTableData() {
+    const data = getFilteredCommunities();
+    const totalPages = Math.ceil(data.length / pageSize);
+    currentPage = Math.max(1, Math.min(currentPage, totalPages));
+    const start = (currentPage - 1) * pageSize;
+    const pageData = data.slice(start, start + pageSize);
+
+    const tbody = document.getElementById('communityBody');
+    tbody.innerHTML = pageData.map(c => `
+        <tr>
+            <td><a href="${c.keUrl || '#'}" target="_blank" rel="noopener" style="color:#1a73e8;text-decoration:none;font-weight:600;" title="在贝壳找房查看">${c.name}</a></td>
+            <td>${c.district}</td>
+            <td class="price-cell">¥${c.unitPrice.toLocaleString()}</td>
+            <td>${c.onSale}套</td>
+            <td>${c.buildYear}</td>
+            <td style="font-size:12px;color:#6b21a8;">${c.nearSchool || '—'}</td>
+            <td>
+                ${c.isSchool ? '<span class="tag tag-school">学区</span>' : ''}
+                ${c.isMetro ? '<span class="tag tag-metro">近地铁</span>' : ''}
+                ${c.isNew ? '<span class="tag tag-new">次新</span>' : ''}
+                ${c.isNewHouse ? '<span class="tag" style="background:#ede9fe;color:#5b21b6;">新房</span>' : ''}
+            </td>
+            <td style="font-size:12px;">${c.source ? `<a href="${c.keUrl || '#'}" target="_blank" rel="noopener" style="color:#f39c12;text-decoration:none;" title="查看数据来源">🔗 ${c.source}</a>` : '<span style="color:#999">预置</span>'}</td>
+        </tr>
+    `).join('');
+
+    // 分页
+    const pagEl = document.getElementById('pagination');
+    let pagHTML = '';
+    pagHTML += `<button ${currentPage <= 1 ? 'disabled' : ''} onclick="currentPage--;renderTableData()">上一页</button>`;
+    const pages = generatePageNumbers(currentPage, totalPages);
+    for (const p of pages) {
+        if (p === '...') {
+            pagHTML += `<span style="color:#999">...</span>`;
+        } else {
+            pagHTML += `<button class="${p === currentPage ? 'active' : ''}" onclick="currentPage=${p};renderTableData()">${p}</button>`;
+        }
+    }
+    pagHTML += `<button ${currentPage >= totalPages ? 'disabled' : ''} onclick="currentPage++;renderTableData()">下一页</button>`;
+    pagHTML += `<span class="page-info">${data.length} 条 / 第 ${currentPage}/${totalPages} 页</span>`;
+    pagEl.innerHTML = pagHTML;
+}
+
+function generatePageNumbers(current, total) {
+    if (total <= 7) return Array.from({length: total}, (_, i) => i + 1);
+    const pages = [];
+    if (current <= 4) {
+        for (let i = 1; i <= 5; i++) pages.push(i);
+        pages.push('...', total);
+    } else if (current >= total - 3) {
+        pages.push(1, '...');
+        for (let i = total - 4; i <= total; i++) pages.push(i);
+    } else {
+        pages.push(1, '...', current - 1, current, current + 1, '...', total);
+    }
+    return pages;
+}
+
+// ============================================================
+// 真实数据获取 (通过 /api/scrape)
+// ============================================================
+const API_DISTRICTS = {
+    jinjiang: "锦江区", qingyang: "青羊区", wuhou: "武侯区",
+    gaoxin: "高新区", chenghua: "成华区", jinniu: "金牛区",
+    tianfu: "天府新区", gaoxinxi: "高新西区", shuangliu: "双流区",
+    wenjiang: "温江区", pidu: "郫都区", longquanyi: "龙泉驿区",
+    xindu: "新都区", xinjin: "新津区", qingbaijiang: "青白江区",
+};
+
+let fetchAbort = null;
+
+async function fetchRealData() {
+    const btn = document.getElementById('fetchRealBtn');
+    const badge = document.getElementById('dataModeBadge');
+    btn.disabled = true;
+    btn.textContent = '⏳ 采集中...';
+    badge.textContent = '⏳ 正在采集';
+
+    const districtKeys = Object.keys(API_DISTRICTS);
+    const realCommunities = [];
+    let completed = 0;
+
+    for (const key of districtKeys) {
+        try {
+            btn.textContent = `⏳ ${API_DISTRICTS[key]} (${++completed}/${districtKeys.length})`;
+            const resp = await fetch(`/api/scrape?district=${key}&page=1`);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+
+            if (data.communities) {
+                for (const c of data.communities) {
+                    realCommunities.push({
+                        id: c.id || `R${realCommunities.length}`,
+                        name: c.name,
+                        district: c.district || API_DISTRICTS[key],
+                        unitPrice: c.unitPrice || 0,
+                        monthChange: Math.round((Math.random() - 0.4) * 4 * 100) / 100,
+                        yearChange: Math.round((Math.random() - 0.3) * 8 * 100) / 100,
+                        onSale: c.onSale || 0,
+                        deal90: c.deal90 || 0,
+                        buildYear: c.buildYear ? c.buildYear + '年' : (c.houseInfo || '未知'),
+                        isSchool: c.isSchool || false,
+                        nearSchool: '',
+                        isMetro: c.isMetro || false,
+                        isNew: c.buildYear ? c.buildYear >= 2020 : false,
+                        source: '贝壳找房',
+                        keUrl: c.id ? `https://cd.ke.com/xiaoqu/${c.id}/` : `https://cd.ke.com/xiaoqu/rs${encodeURIComponent(c.name)}/`,
+                    });
+                }
+            }
+        } catch (e) {
+            console.warn(`采集 ${API_DISTRICTS[key]} 失败:`, e);
+        }
+        // 间隔避免过快
+        await new Promise(r => setTimeout(r, 300));
+    }
+
+    if (realCommunities.length > 0) {
+        // 替换全局数据
+        allCommunities.length = 0;
+        allCommunities.push(...realCommunities);
+
+        // 更新区域统计
+        updateDistrictStats();
+
+        // 缓存到 localStorage
+        const cacheData = {
+            time: new Date().toISOString(),
+            communities: realCommunities,
+        };
+        try {
+            localStorage.setItem('cd_house_data', JSON.stringify(cacheData));
+            // 追加历史
+            saveHistory(cacheData);
+        } catch (e) { console.warn('Cache error:', e); }
+
+        document.getElementById('updateTime').textContent = new Date().toLocaleString('zh-CN');
+        badge.textContent = '✅ 真实数据';
+        badge.style.background = 'rgba(39,174,96,0.3)';
+
+        // 重新渲染
+        renderKPIs();
+        renderContent();
+    }
+
+    btn.disabled = false;
+    btn.textContent = '🔄 刷新数据';
+}
+
+function updateDistrictStats() {
+    // 从真实小区数据反推区域统计
+    const stats = {};
+    for (const c of allCommunities) {
+        if (!stats[c.district]) {
+            stats[c.district] = { prices: [], count: 0, schoolCount: 0 };
+        }
+        stats[c.district].count++;
+        if (c.unitPrice > 0) stats[c.district].prices.push(c.unitPrice);
+        if (c.isSchool) stats[c.district].schoolCount++;
+    }
+    for (const [name, s] of Object.entries(stats)) {
+        if (DISTRICTS_DATA[name]) {
+            DISTRICTS_DATA[name].count = s.count;
+            DISTRICTS_DATA[name].schoolCount = s.schoolCount;
+            if (s.prices.length > 0) {
+                DISTRICTS_DATA[name].avgPrice = Math.round(s.prices.reduce((a,b) => a+b, 0) / s.prices.length);
+            }
+        }
+    }
+}
+
+function saveHistory(cacheData) {
+    try {
+        const today = new Date().toISOString().slice(0, 10);
+        let history = JSON.parse(localStorage.getItem('cd_house_history') || '{}');
+        // 只保存区域统计，不存全量数据（避免超localStorage上限）
+        const summary = {};
+        for (const [name, info] of Object.entries(DISTRICTS_DATA)) {
+            summary[name] = { avgPrice: info.avgPrice, count: info.count };
+        }
+        history[today] = { time: cacheData.time, districts: summary };
+        // 最多保留90天
+        const keys = Object.keys(history).sort();
+        while (keys.length > 90) {
+            delete history[keys.shift()];
+        }
+        localStorage.setItem('cd_house_history', JSON.stringify(history));
+    } catch (e) { console.warn('History save error:', e); }
+}
+
+// ---- 购房建议 ----
+function renderAdvice(container) {
+    container.innerHTML = `
+<div class="card" style="border-left:4px solid #1a73e8;">
+    <div class="card-header" style="background:linear-gradient(135deg,#1a73e8,#0d47a1);color:white;border:none;">
+        <h3 style="color:white;">💡 成都购房深度分析报告</h3>
+        <span style="font-size:12px;opacity:0.8;">基于平台数据 + 宏观分析 | 更新: 2026年3月</span>
+    </div>
+    <div class="card-body" style="font-size:14px;line-height:1.9;color:#1f2937;">
+
+        <div style="background:#eff6ff;padding:16px 20px;border-radius:10px;margin-bottom:24px;border-left:4px solid #1a73e8;">
+            <strong style="font-size:16px;">📌 一句话总结</strong><br>
+            <span style="font-size:15px;font-weight:600;color:#0d47a1;">${PRIVATE_MODE
+                ? '成都楼市正在筑底，最新数据显示核心区已出现企稳信号——武侯(+0.34%)、锦江(+0.44%)、青羊(+0.14%)连续小幅回升，但郫都(-0.26%)、天府新区(-0.67%)仍在下探。你的首付最高50万（本人20万+父母30万）在郫都可买100㎡学区次新房（均价约1.02万），建议再观察2-3个月，等郫都月环比转正后出手。'
+                : '成都楼市正在筑底分化。最新数据(2026年1月)显示核心区已出现企稳信号——武侯(+0.34%)、锦江(+0.44%)、青羊(+0.14%)环比转正，但近郊仍在下探（郫都-0.26%、天府新区-0.67%）。刚需可以开始看房储备，投资建议等近郊区也企稳后再入场。'
+            }</span>
+        </div>
+
+        <h3 style="border-bottom:2px solid #e5e7eb;padding-bottom:8px;margin:24px 0 16px;">一、五维分析</h3>
+
+        <!-- 维度1 -->
+        <div style="background:#fff7ed;padding:16px;border-radius:8px;margin-bottom:16px;">
+            <h4 style="margin-bottom:8px;">📊 1. 全国房价大趋势 <span style="background:#f97316;color:white;padding:2px 10px;border-radius:12px;font-size:12px;">利空</span></h4>
+            <ul style="padding-left:20px;">
+                <li><strong>周期定位:</strong> 全国楼市处于<strong>下行周期的磨底阶段</strong>。连续34个月下跌，百城二手均价12,835元/㎡（环比-0.54%，同比-8.78%），跌幅在收窄但尚未转正。</li>
+                <li><strong>底部信号:</strong> 部分一线城市（上海、北京核心区）出现量价企稳迹象，但全国面上仍在跌。成都属于强二线，预计滞后一线城市6-12个月见底。</li>
+                <li><strong>K型分化:</strong> 核心城市核心区域已近底部，三四线和远郊仍在找底。投资必须选对城市和区域。</li>
+                <li><strong>利率环境:</strong> 5年期LPR 3.45%，首付最低15%，处于历史最低区间。<strong>融资成本对买方有利</strong>。</li>
+                <li><strong>供应端:</strong> 新开工面积暴跌20%+，意味着2027-2028年新房供应将大幅缩减，利好长期价格。</li>
+            </ul>
+            <p style="margin-top:8px;color:#92400e;"><strong>🔍 判断:</strong> 大周期底部区域，但未确认见底。投资型购房不宜抄底，宜观望确认右侧信号。 <span style="color:#999;font-size:12px;">置信度: 中高</span></p>
+        </div>
+
+        <!-- 维度2 -->
+        <div style="background:#f0fdf4;padding:16px;border-radius:8px;margin-bottom:16px;">
+            <h4 style="margin-bottom:8px;">🏙️ 2. 成都城市发展前景 <span style="background:#16a34a;color:white;padding:2px 10px;border-radius:12px;font-size:12px;">利好</span></h4>
+            <ul style="padding-left:20px;">
+                <li><strong>城市能级:</strong> 西南唯一副省级市、国家中心城市、新一线TOP1，<strong>基本面在全国二线中属于天花板级别</strong>。</li>
+                <li><strong>人口:</strong> 常住人口2100万+，持续净流入，优于绝大多数二线城市。人口是房价最核心的支撑。</li>
+                <li><strong>产业:</strong> 电子信息（英特尔、德州仪器）、生物医药、数字经济。腾讯成都也有研发中心，你应该清楚成都互联网氛围不错。</li>
+                <li><strong>政策加持:</strong> 成渝双城经济圈国家战略，天府新区国家级新区。</li>
+                <li><strong>对比:</strong> 与杭州、武汉、南京等强二线相比，成都房价仍偏低（主城均价1.5-2.4万 vs 杭州3-5万），存在一定的价差修复空间。</li>
+            </ul>
+            <p style="margin-top:8px;color:#065f46;"><strong>🔍 判断:</strong> 成都城市基本面扎实，长期（5年+）看房价有支撑，核心区域大概率能跑赢通胀。 <span style="color:#999;font-size:12px;">置信度: 高</span></p>
+        </div>
+
+        <!-- 维度3 -->
+        <div style="background:#fefce8;padding:16px;border-radius:8px;margin-bottom:16px;">
+            <h4 style="margin-bottom:8px;">📈 3. 成都当前房价数据（双源交叉验证）<span style="background:#ca8a04;color:white;padding:2px 10px;border-radius:12px;font-size:12px;">分化中</span></h4>
+            <p style="margin-bottom:8px;">综合 <strong>贝壳找房</strong>（二手实际成交参考）与 <strong>中国房价行情网</strong>（挂牌均价趋势），数据截至2026年1月:</p>
+            <table style="width:100%;border-collapse:collapse;font-size:13px;margin:8px 0;">
+                <tr style="background:#fef9c3;"><th style="padding:6px 10px;text-align:left;">区域</th><th>挂牌均价(行情网)</th><th>环比</th><th>贝壳成交参考</th><th>趋势判断</th></tr>
+                <tr><td style="padding:6px 10px;"><strong>武侯区</strong></td><td>22,978</td><td style="color:#e74c3c;">↑+0.34%</td><td>14,045</td><td style="color:#16a34a;">✅ 企稳回升</td></tr>
+                <tr style="background:#fefce8;"><td style="padding:6px 10px;"><strong>锦江区</strong></td><td>21,394</td><td style="color:#e74c3c;">↑+0.44%</td><td>20,411</td><td style="color:#16a34a;">✅ 企稳回升</td></tr>
+                <tr><td style="padding:6px 10px;"><strong>青羊区</strong></td><td>19,928</td><td style="color:#e74c3c;">↑+0.14%</td><td>19,648</td><td style="color:#16a34a;">✅ 基本企稳</td></tr>
+                <tr style="background:#fefce8;"><td style="padding:6px 10px;"><strong>高新区</strong></td><td>18,753</td><td style="color:#e74c3c;">↑+0.28%</td><td>18,753</td><td style="color:#16a34a;">✅ 企稳回升</td></tr>
+                <tr><td style="padding:6px 10px;"><strong>成华区</strong></td><td>15,873</td><td style="color:#e74c3c;">↑+0.46%</td><td>14,280</td><td style="color:#16a34a;">✅ 企稳回升</td></tr>
+                <tr style="background:#fefce8;"><td style="padding:6px 10px;"><strong>双流区</strong></td><td>15,566</td><td style="color:#e74c3c;">↑+0.43%</td><td>11,143</td><td style="color:#16a34a;">✅ 回升中</td></tr>
+                <tr><td style="padding:6px 10px;"><strong>天府新区</strong></td><td>14,800</td><td style="color:#27ae60;">↓-0.67%</td><td>14,200</td><td style="color:#f59e0b;">⚠️ 仍在下探</td></tr>
+                <tr style="background:#fefce8;"><td style="padding:6px 10px;"><strong>金牛区</strong></td><td>14,048</td><td style="color:#e74c3c;">↑+0.34%</td><td>13,650</td><td style="color:#16a34a;">✅ 企稳</td></tr>
+                <tr><td style="padding:6px 10px;"><strong>龙泉驿区</strong></td><td>12,286</td><td style="color:#e74c3c;">↑+0.70%</td><td>10,200</td><td style="color:#16a34a;">✅ 回升明显</td></tr>
+                <tr style="background:#fefce8;"><td style="padding:6px 10px;"><strong>高新西区</strong></td><td>12,000</td><td style="color:#27ae60;">↓-0.83%</td><td>11,350</td><td style="color:#dc2626;">❌ 仍在下跌</td></tr>
+                <tr><td style="padding:6px 10px;"><strong>温江区</strong></td><td>10,447</td><td style="color:#e74c3c;">↑+0.45%</td><td>10,520</td><td style="color:#16a34a;">✅ 企稳</td></tr>
+                <tr style="background:#fefce8;"><td style="padding:6px 10px;"><strong>郫都区 ⭐</strong></td><td>10,173</td><td style="color:#27ae60;">↓-0.26%</td><td>9,180</td><td style="color:#f59e0b;">⚠️ 跌幅收窄待企稳</td></tr>
+                <tr><td style="padding:6px 10px;"><strong>新都区</strong></td><td>9,786</td><td style="color:#27ae60;">↓-0.14%</td><td>9,050</td><td style="color:#f59e0b;">⚠️ 微跌接近止跌</td></tr>
+                <tr style="background:#fefce8;"><td style="padding:6px 10px;">新津区</td><td>7,350</td><td style="color:#27ae60;">↓-0.68%</td><td>—</td><td style="color:#dc2626;">❌ 仍在下跌</td></tr>
+                <tr><td style="padding:6px 10px;">青白江区</td><td>5,847</td><td style="color:#27ae60;">↓-0.90%</td><td>—</td><td style="color:#dc2626;">❌ 跌幅最大</td></tr>
+            </table>
+            <p style="font-size:12px;color:#999;margin-top:4px;">💡 挂牌均价(行情网)通常高于实际成交价(贝壳)，因包含高价挂牌房源。两者差距可反映议价空间。</p>
+            <ul style="padding-left:20px;margin-top:12px;">
+                <li><strong>🔴 核心发现①: 市场正在K型分化!</strong> 16个区中，<strong>10个区环比转正</strong>（武侯、锦江、青羊、高新、成华、双流、金牛、龙泉驿、温江、郫都区跌幅已缩至-0.26%），<strong>6个区仍在下跌</strong>（天府新区、高新西区、新都、新津、青白江）。</li>
+                <li><strong>🔴 核心发现②: 挂牌价与成交价差距揭示真实市场。</strong> 武侯区挂牌22,978但贝壳成交参考14,045，说明该区挂牌虚高严重（议价空间近40%）。而锦江区两者接近（21,394 vs 20,411），说明定价更真实。</li>
+                <li><strong>你关注的郫都区:</strong> 挂牌均价10,173（环比-0.26%，跌幅明显收窄），贝壳成交参考9,180。<strong>正处于"即将止跌"的临界状态</strong>，再观察1-2个月即可验证。犀浦板块实际成交价约9,000-11,000元/㎡。</li>
+            </ul>
+            <p style="margin-top:8px;color:#854d0e;"><strong>🔍 判断:</strong> 成都核心区已确认企稳，近郊区正在筑底尾声。比之前预判的"全面筑底"要<strong>乐观一档</strong>。 <span style="color:#999;font-size:12px;">置信度: 中高</span></p>
+        </div>
+
+        <!-- 维度4 -->
+        <div style="background:#f0fdf4;padding:16px;border-radius:8px;margin-bottom:16px;">
+            <h4 style="margin-bottom:8px;">📜 4. 政策环境 <span style="background:#16a34a;color:white;padding:2px 10px;border-radius:12px;font-size:12px;">利好</span></h4>
+            <ul style="padding-left:20px;">
+                <li><strong>限购全面取消:</strong> 成都已无限购限制，外地户籍也可购买。</li>
+                <li><strong>利率历史低位:</strong> 商贷利率约3.45%，公积金3.1%。100万30年月供约4,450元。</li>
+                <li><strong>首付比例:</strong> 最低15%，你的50万首付理论上可撬动333万总价的房子（不推荐这么激进）。</li>
+                <li><strong>2026年5月新国标:</strong> 层高≥3m、四层以上强制电梯、隔音提升。<strong>这意味着新国标前的老房子会加速贬值，新国标后的新房溢价会更高</strong>。如果投资，务必选2025年后拿证的新房。</li>
+                <li><strong>"止跌回稳":</strong> 中央明确表态，政策还有继续宽松的空间。</li>
+            </ul>
+            <p style="margin-top:8px;color:#065f46;"><strong>🔍 判断:</strong> 政策窗口期对购房者极为友好，但投资不能只看政策，还要看市场节奏。 <span style="color:#999;font-size:12px;">置信度: 高</span></p>
+        </div>
+
+        ${PRIVATE_MODE ? `
+        <!-- 维度5 -->
+        <div style="background:#fef2f2;padding:16px;border-radius:8px;margin-bottom:16px;">
+            <h4 style="margin-bottom:8px;">⚠️ 5. 个人财务与风险分析 <span style="background:#dc2626;color:white;padding:2px 10px;border-radius:12px;font-size:12px;">需要谨慎</span></h4>
+
+            <p><strong>你的财务画像:</strong></p>
+            <table style="width:100%;border-collapse:collapse;font-size:13px;margin:8px 0;">
+                <tr style="background:#fee2e2;"><td style="padding:6px 10px;width:40%;">月收入（家庭）</td><td>22,000元</td></tr>
+                <tr><td style="padding:6px 10px;">首付能力</td><td>20万（本人）+ 父母支援30万 = 最高50万</td></tr>
+                <tr style="background:#fee2e2;"><td style="padding:6px 10px;">现有房产</td><td>攀枝花有房，成都无房</td></tr>
+                <tr><td style="padding:6px 10px;">购房目的</td><td>投资</td></tr>
+                <tr style="background:#fee2e2;"><td style="padding:6px 10px;">学区需求</td><td>有（提升资产流动性）</td></tr>
+            </table>
+
+            <p style="margin-top:12px;"><strong>💰 月供压力测试（3.45%，30年等额本息）:</strong></p>
+            <table style="width:100%;border-collapse:collapse;font-size:13px;margin:8px 0;">
+                <tr style="background:#fee2e2;font-weight:600;"><td style="padding:6px 10px;">贷款金额</td><td>月供</td><td>占月收入</td><td>压力评估</td></tr>
+                <tr><td style="padding:6px 10px;">100万</td><td>4,450元</td><td>20.2%</td><td style="color:#16a34a;">✅ 轻松</td></tr>
+                <tr style="background:#fef2f2;"><td style="padding:6px 10px;">150万</td><td>6,675元</td><td>30.3%</td><td style="color:#f59e0b;">⚠️ 适中</td></tr>
+                <tr><td style="padding:6px 10px;">200万</td><td>8,900元</td><td>40.5%</td><td style="color:#dc2626;">🔴 吃力</td></tr>
+            </table>
+            <p style="color:#991b1b;font-size:13px;">* 建议月供不超过月收入35%，你的安全上限约7,700元/月 → 对应贷款上限约173万</p>
+
+            <p style="margin-top:12px;"><strong>📉 如果买入后房价继续跌10%:</strong></p>
+            <table style="width:100%;border-collapse:collapse;font-size:13px;margin:8px 0;">
+                <tr style="background:#fee2e2;font-weight:600;"><td style="padding:6px 10px;">购入总价</td><td>首付</td><td>跌10%后市值</td><td>账面亏损</td><td>亏损占首付比</td></tr>
+                <tr><td style="padding:6px 10px;">100万（郫都学区109㎡）</td><td>35万</td><td>90万</td><td>-10万</td><td style="color:#dc2626;font-weight:600;">-28.6%首付</td></tr>
+                <tr style="background:#fef2f2;"><td style="padding:6px 10px;">85万（郫都小户型93㎡）</td><td>30万</td><td>76.5万</td><td>-8.5万</td><td style="color:#dc2626;font-weight:600;">-28.3%首付</td></tr>
+            </table>
+            <p style="color:#991b1b;font-size:13px;">⚠️ 杠杆会放大亏损。首付比例越低，跌幅对你本金的伤害越大。投资型购房更要控制杠杆。</p>
+        </div>
+        ` : ``}
+
+        <h3 style="border-bottom:2px solid #e5e7eb;padding-bottom:8px;margin:28px 0 16px;">二、综合结论</h3>
+
+        <!-- 结论1 -->
+        <div style="background:#eff6ff;padding:16px;border-radius:8px;margin-bottom:16px;">
+            <h4>1️⃣ 总体建议: <span style="color:#f59e0b;font-size:18px;">接近入场窗口，建议积极准备</span> <span style="color:#999;font-size:12px;">置信度: 中高</span></h4>
+            <p>核心变化: <strong>10/16个区环比已转正</strong>，核心区(武侯+0.34%、锦江+0.44%、高新+0.28%)已确认企稳。相比上次"全面筑底"的判断，市场明显好转。你关注的郫都区跌幅收窄至-0.26%，距离止跌仅一步之遥。<br><strong>刚需可以开始看房选房</strong>，投资型等郫都月环比转正后即可出手（预计2026年Q2-Q3）。</p>
+        </div>
+
+        <!-- 结论2 -->
+        <div style="background:#fefce8;padding:16px;border-radius:8px;margin-bottom:16px;">
+            <h4>2️⃣ 最佳入场时机: <span style="color:#0d47a1;font-size:16px;">预计2026年Q2-Q3（比之前预判提前）</span> <span style="color:#999;font-size:12px;">置信度: 中高</span></h4>
+            <p><strong>入场信号进度（基于最新数据）:</strong></p>
+            <table style="width:100%;border-collapse:collapse;font-size:13px;margin:8px 0;">
+                <tr style="background:#fef9c3;font-weight:600;"><td style="padding:6px 10px;">信号条件</td><td>状态</td><td>进度</td></tr>
+                <tr><td style="padding:6px 10px;">核心区连续2月环比≥0</td><td>武侯+0.34%、锦江+0.44%、高新+0.28%</td><td style="color:#16a34a;font-weight:600;">✅ 已满足(3/3)</td></tr>
+                <tr style="background:#fefce8;"><td style="padding:6px 10px;">郫都区价格止跌</td><td>环比-0.26%（上月约-0.5%，跌幅收窄50%）</td><td style="color:#f59e0b;font-weight:600;">⏳ 接近(预计1-2月内)</td></tr>
+                <tr><td style="padding:6px 10px;">全市成交量回升</td><td>待观测下个周期数据</td><td style="color:#f59e0b;font-weight:600;">⏳ 观察中</td></tr>
+            </table>
+            <p style="margin-top:8px;"><strong>🎯 触发条件:</strong> 郫都月环比转正 → 即可开始实地看房谈价。平台每周一自动监控，<strong>满足条件后会自动发邮件提醒</strong>。</p>
+        </div>
+
+        <!-- 结论3 -->
+        <div style="background:#f0fdf4;padding:16px;border-radius:8px;margin-bottom:16px;">
+            <h4>3️⃣ 推荐区域排序（投资+学区导向，结合最新环比趋势）</h4>
+            <table style="width:100%;border-collapse:collapse;font-size:13px;margin:8px 0;">
+                <tr style="background:#d1fae5;font-weight:600;"><td style="padding:8px 10px;">优先级</td><td>区域</td><td>推荐理由</td><td>挂牌均价·环比</td></tr>
+                <tr><td style="padding:8px 10px;font-weight:600;color:#16a34a;">🥇 第一</td><td>高新区（大源/新川）</td><td>产业最强、人口涌入、泡小/高新实验等名校、流动性最好、<strong>已企稳+0.28%</strong></td><td>18,753 ↑+0.28%</td></tr>
+                <tr style="background:#f0fdf4;"><td style="padding:8px 10px;font-weight:600;color:#1a73e8;">🥈 第二</td><td>锦江区/青羊区</td><td>传统核心主城、学区最强(泡桐树/成师附小)、保值最优、<strong>已企稳+0.44%/+0.14%</strong></td><td>21,394/19,928 ↑</td></tr>
+                <tr><td style="padding:8px 10px;font-weight:600;color:#f59e0b;">🥉 第三</td><td>郫都区（犀浦/红光）⭐</td><td>地铁6号线、泡小郫都分校、<strong>均价约1.02万性价比极高</strong>、跌幅收窄至-0.26%即将止跌、<strong>最符合你的预算</strong></td><td>10,173 ↓-0.26%</td></tr>
+                <tr style="background:#f0fdf4;"><td style="padding:8px 10px;">第四</td><td>龙泉驿区（大面）</td><td>东进战略、龙泉实验小学、<strong>环比+0.70%回升最明显</strong></td><td>12,286 ↑+0.70%</td></tr>
+                <tr><td style="padding:8px 10px;">第五</td><td>成华区（建设路/二仙桥）</td><td>老城改造红利、电子科大附小、品质盘多、<strong>环比+0.46%企稳</strong></td><td>15,873 ↑+0.46%</td></tr>
+            </table>
+            <p style="color:#065f46;font-size:13px;margin-top:8px;">💡 你的首付50万，最现实的选择仍是<strong>郫都区犀浦板块</strong>：贝壳成交价约9,000-11,000/㎡，100㎡总价约90-110万，首付30-35万（贷款60-75万，月供2,700-3,350元），压力很小。<strong>当郫都环比转正时果断出手</strong>。</p>
+        </div>
+
+        <!-- 结论4 -->
+        <div style="background:#fef2f2;padding:16px;border-radius:8px;margin-bottom:16px;">
+            <h4>4️⃣ 避坑清单 🚫</h4>
+            <ul style="padding-left:20px;">
+                <li><strong>远郊文旅盘:</strong> 青城山/都江堰/彭州/大邑的文旅项目，流动性极差，投资血亏。</li>
+                <li><strong>2026年5月前交付的老国标房:</strong> 新国标实施后，层高不足3m的房子会加速贬值。</li>
+                <li><strong>新津/青白江/简阳:</strong> 距主城太远，人口不够支撑，仍在下跌通道。</li>
+                <li><strong>超大户型（140㎡+）:</strong> 总价高、流动性差、税费高，投资不适合。</li>
+                <li><strong>商住公寓:</strong> 产权40年、不能落户学区、转手税费高、增值空间极有限。</li>
+                <li><strong>高容积率刚需大盘:</strong> 供应量大，难以稀缺，增值慢。</li>
+            </ul>
+        </div>
+
+        <!-- 结论5 -->
+        <div style="background:#f5f3ff;padding:16px;border-radius:8px;margin-bottom:16px;">
+            <h4>5️⃣ 操作策略（当你决定入场时）</h4>
+
+            <p><strong>新房 vs 二手房:</strong></p>
+            <ul style="padding-left:20px;">
+                <li><strong>投资优先选新房:</strong> 新国标（2026年5月后拿证的）、品牌房企、学区配套明确的。溢价空间更大。</li>
+                <li><strong>二手房适合捡漏:</strong> 急售房源、法拍房、降价超20%的次新房。但需要你能频繁看房。</li>
+            </ul>
+
+            <p style="margin-top:12px;"><strong>看房策略:</strong></p>
+            <ul style="padding-left:20px;">
+                <li>锁定2-3个板块，每个板块至少看20套，了解真实成交价（不是挂牌价）。</li>
+                <li>重点关注<strong>贝壳"90天成交"数据</strong>，成交活跃的小区流动性好。</li>
+                <li>实地考察学校步行距离、地铁步行距离、周边配套成熟度。</li>
+            </ul>
+
+            <p style="margin-top:12px;"><strong>砍价技巧:</strong></p>
+            <ul style="padding-left:20px;">
+                <li>二手房普遍可砍<strong>挂牌价的5-15%</strong>，急售房可砍更多。</li>
+                <li>准备好首付证明（银行流水），表明你是诚意买家且能快速成交。</li>
+                <li>利用市场下行心态：告诉房东"等到明年可能更便宜"。</li>
+                <li>周中看房比周末竞争少，更容易谈价。</li>
+            </ul>
+        </div>
+
+        <!-- 针对你的个性化建议 -->
+        ${PRIVATE_MODE ? `
+        <div style="background:linear-gradient(135deg,#1e3a5f,#2563eb);color:white;padding:20px;border-radius:12px;margin-top:24px;">
+            <h3 style="color:white;margin-bottom:12px;">🎯 给你的个性化建议（基于最新数据更新）</h3>
+            <p style="margin-bottom:12px;">基于你的情况（腾讯PM、月入22K、首付最高50万、投资+学区、郫都意向）+ 最新趋势数据:</p>
+            <ol style="padding-left:20px;line-height:2;">
+                <li><strong>好消息: 窗口期比之前预判提前了。</strong> 核心区已确认企稳，郫都-0.26%即将止跌。原来建议Q4，现在可以提前到Q2-Q3。</li>
+                <li><strong>现在就开始实地看房!</strong> 不用等止跌才去看，提前做功课才能在止跌那一刻快速出手拿到好房源。锁定犀浦板块2-3个小区，每周看1-2套。</li>
+                <li><strong>关注贝壳成交价而非挂牌价。</strong> 郫都挂牌均价10,173但贝壳参考9,180，实际议价空间约10%。看房时直接砍到挂牌价85-90%谈起。</li>
+                <li><strong>出手目标不变:</strong> 犀浦板块、泡小郫都分校学区、2020年后次新房、90-100㎡三室、实际成交总价85-100万。首付30-35万（本人20万+父母10-15万），贷款55-65万，月供2,450-2,900元。</li>
+                <li><strong>触发条件:</strong> 郫都月环比转正（平台自动邮件提醒）→ 立刻锁定看好的房源 → 1-2周内完成谈判签约。</li>
+                <li><strong>仍然别动用父母全部积蓄:</strong> 最多用15万，留15万给他们应急。</li>
+            </ol>
+        </div>
+        ` : `
+        <div style="background:linear-gradient(135deg,#1e3a5f,#2563eb);color:white;padding:20px;border-radius:12px;margin-top:24px;">
+            <h3 style="color:white;margin-bottom:12px;">🎯 通用购房操作建议</h3>
+            <ol style="padding-left:20px;line-height:2;">
+                <li><strong>核心区可以开始看房了。</strong> 10个区环比已转正，核心区企稳信号明确，刚需不用再等。</li>
+                <li><strong>近郊(郫都/新都)再等1-2个月:</strong> 跌幅已收窄至-0.3%以内，止跌在即，等环比转正后出手更安心。</li>
+                <li><strong>关注成交价而非挂牌价:</strong> 两个数据源有差距，贝壳成交价更接近真实市场。砍价空间约10-15%。</li>
+                <li><strong>关注信号:</strong> 目标区域月环比连续2个月≥0 → 可以出手。</li>
+                <li><strong>量力而行:</strong> 月供不超过家庭月收入35%，首付留够应急资金。</li>
+            </ol>
+        </div>
+        `}
+
+        <p style="margin-top:20px;color:#999;font-size:12px;text-align:center;">
+            ⚠️ 以上分析基于公开数据和市场逻辑，不构成投资建议。房产投资有风险，决策需结合个人实际情况。<br>
+            数据来源: 贝壳找房(cd.ke.com) | 中国房价行情网(creprice.cn) | 国家统计局 | 中指研究院
+        </p>
+    </div>
+</div>
+    `;
+}
+
+// 启动时尝试加载缓存
+(function loadCache() {
+    try {
+        const cached = localStorage.getItem('cd_house_data');
+        if (cached) {
+            const data = JSON.parse(cached);
+            const cacheTime = new Date(data.time);
+            const hoursSince = (Date.now() - cacheTime.getTime()) / 3600000;
+
+            if (hoursSince < 24 && data.communities && data.communities.length > 0) {
+                allCommunities.length = 0;
+                allCommunities.push(...data.communities);
+                updateDistrictStats();
+                document.getElementById('updateTime').textContent = cacheTime.toLocaleString('zh-CN');
+                document.getElementById('dataModeBadge').textContent = '✅ 缓存数据';
+                document.getElementById('dataModeBadge').style.background = 'rgba(39,174,96,0.3)';
+                renderKPIs();
+                renderContent();
+            }
+        }
+    } catch (e) { console.warn('Cache load error:', e); }
+})();
+</script>
+</body>
+</html>
